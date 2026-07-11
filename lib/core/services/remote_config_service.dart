@@ -84,6 +84,10 @@ class RemoteConfigService {
   // Config Version
   int get configVersion => _getInt('config.version');
   
+  // RevenueCat Configuration
+  String get revenueCatApiKeyAndroid => _getString('revenuecat.apiKey.android');
+  String get revenueCatApiKeyIOS => _getString('revenuecat.apiKey.ios');
+  
   // Helper methods
   bool _getBool(String key) {
     try {

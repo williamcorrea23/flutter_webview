@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/services/ads_service.dart';
 import '../../../../core/services/remote_config_service.dart';
+import '../../../../core/services/purchases_service.dart';
 import '../../../../shared/constants/app_constants.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../widgets/progress_indicator_widget.dart';
@@ -24,7 +26,7 @@ class WebViewPage extends ConsumerStatefulWidget {
 }
 
 class _WebViewPageState extends ConsumerState<WebViewPage> {
-  late final WebViewController _webViewController;
+  InAppWebViewController? _webViewController;
   late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
   
   bool _isLoading = true;
@@ -35,7 +37,6 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   @override
   void initState() {
     super.initState();
-    _initializeWebView();
     _setupConnectivityListener();
   }
   
@@ -45,80 +46,103 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     super.dispose();
   }
   
-  void _initializeWebView() {
-    _webViewController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(_createNavigationDelegate())
-      ..addJavaScriptChannel(
-        'NativeApp',
-        onMessageReceived: _handleJavaScriptMessage,
-      )
-      ..loadRequest(Uri.parse(AppConfig.primaryUrl));
+  void _setupJavaScriptHandlers() {
+    final controller = _webViewController;
+    if (controller == null) return;
     
-    // Inject JavaScript bridge
-    _injectJavaScriptBridge();
-  }
-  
-  NavigationDelegate _createNavigationDelegate() {
-    return NavigationDelegate(
-      onPageStarted: (url) {
-        setState(() {
-          _isLoading = true;
-          _loadingProgress = 0.0;
-        });
+    final purchasesService = ref.read(purchasesServiceProvider);
+    
+    // Legacy app commands
+    controller.addJavaScriptHandler(
+      handlerName: 'openMaps',
+      callback: (args) {
+        if (args.isNotEmpty) {
+          final location = args[0] as String;
+          _launchExternalUrl('maps:$location');
+        }
       },
-      onProgress: (progress) {
-        setState(() {
-          _loadingProgress = progress / 100.0;
-        });
+    );
+    
+    controller.addJavaScriptHandler(
+      handlerName: 'share',
+      callback: (args) {
+        if (args.isNotEmpty) {
+          final content = args[0] as String;
+          debugPrint('Share request: $content');
+        }
       },
-      onPageFinished: (url) async {
-        setState(() {
-          _isLoading = false;
-          _loadingProgress = 1.0;
-        });
-        
-        // Update back button state
-        final canGoBack = await _webViewController.canGoBack();
-        setState(() {
-          _canGoBack = canGoBack;
-        });
-        
-        // Notify ads service of navigation
-        ref.read(adsServiceProvider).onPageNavigation();
-        
-        // Re-inject JavaScript bridge on page change
-        _injectJavaScriptBridge();
+    );
+    
+    controller.addJavaScriptHandler(
+      handlerName: 'call',
+      callback: (args) {
+        if (args.isNotEmpty) {
+          final number = args[0] as String;
+          _launchExternalUrl('tel:$number');
+        }
       },
-      onNavigationRequest: (request) {
-        return _handleNavigationRequest(request);
+    );
+
+    // RevenueCat integration
+    controller.addJavaScriptHandler(
+      handlerName: 'getOfferings',
+      callback: (args) async {
+        return await purchasesService.getOfferings();
       },
-      onWebResourceError: (error) {
-        debugPrint('WebView error: ${error.description}');
-        _handleWebViewError();
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'purchaseProduct',
+      callback: (args) async {
+        if (args.isEmpty) {
+          return {'success': false, 'error': 'Product identifier is required'};
+        }
+        final packageId = args[0] as String;
+        return await purchasesService.purchasePackage(packageId);
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'restorePurchases',
+      callback: (args) async {
+        return await purchasesService.restorePurchases();
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'getCustomerInfo',
+      callback: (args) async {
+        return await purchasesService.getCustomerInfo();
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'isPremiumActive',
+      callback: (args) async {
+        return await purchasesService.isPremiumActive();
       },
     );
   }
   
-  NavigationDecision _handleNavigationRequest(NavigationRequest request) {
-    final url = request.url.toLowerCase();
+  bool _handleNavigationRequest(String requestUrl) {
+    final url = requestUrl.toLowerCase();
     
     // Check for external link patterns
     for (final pattern in AppConfig.externalLinkPatterns) {
       if (RegExp(pattern).hasMatch(url)) {
-        _launchExternalUrl(request.url);
-        return NavigationDecision.prevent;
+        _launchExternalUrl(requestUrl);
+        return false; // Prevent navigation
       }
     }
     
     // Check if URL is from allowed domains
-    final uri = Uri.tryParse(request.url);
+    final uri = Uri.tryParse(requestUrl);
     if (uri != null && !_isAllowedDomain(uri.host)) {
-      _launchExternalUrl(request.url);
-      return NavigationDecision.prevent;
+      _launchExternalUrl(requestUrl);
+      return false; // Prevent navigation
     }
     
-    return NavigationDecision.navigate;
+    return true; // Allow navigation
   }
   
   bool _isAllowedDomain(String host) {
@@ -150,7 +174,6 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         final isConnected = connectivity != ConnectivityResult.none;
         
         if (isConnected && _isOffline) {
-          // Reconnected - reload the page
           _reloadPage();
         }
         
@@ -168,13 +191,16 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   }
   
   Future<void> _reloadPage() async {
+    final controller = _webViewController;
+    if (controller == null) return;
+
     setState(() {
       _isLoading = true;
       _isOffline = false;
     });
     
     try {
-      await _webViewController.reload();
+      await controller.reload();
     } catch (e) {
       debugPrint('Failed to reload page: $e');
       setState(() {
@@ -184,47 +210,10 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     }
   }
   
-  Future<void> _handleJavaScriptMessage(JavaScriptMessage message) async {
-    try {
-      // Handle messages from website's JavaScript
-      final data = message.message;
-      debugPrint('Received JS message: $data');
-      
-      // Example: Handle custom actions
-      if (data.startsWith('openMaps:')) {
-        final location = data.substring(9);
-        _launchExternalUrl('maps:$location');
-      } else if (data.startsWith('share:')) {
-        // Handle share functionality
-        debugPrint('Share request: ${data.substring(6)}');
-      }
-    } catch (e) {
-      debugPrint('Error handling JS message: $e');
-    }
-  }
-  
-  void _injectJavaScriptBridge() {
-    // Inject JavaScript bridge for website communication
-    const jsCode = '''
-      window.NativeApp = {
-        openMaps: function(location) {
-          NativeApp.postMessage('openMaps:' + location);
-        },
-        share: function(content) {
-          NativeApp.postMessage('share:' + content);
-        },
-        call: function(number) {
-          NativeApp.postMessage('call:' + number);
-        }
-      };
-    ''';
-    
-    _webViewController.runJavaScript(jsCode);
-  }
-  
   Future<bool> _handleBackPress() async {
-    if (_canGoBack) {
-      await _webViewController.goBack();
+    final controller = _webViewController;
+    if (controller != null && _canGoBack) {
+      await controller.goBack();
       return false; // Don't exit app
     }
     
@@ -261,6 +250,35 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     final remoteConfig = ref.watch(remoteConfigServiceProvider);
     final bannerPlacement = remoteConfig.bannerPlacement;
     final showBannerAd = remoteConfig.adsEnabled && remoteConfig.bannerAdsEnabled;
+
+    const jsBridgeCode = '''
+      window.NativeApp = {
+        openMaps: function(location) {
+          window.flutter_inappwebview.callHandler('openMaps', location);
+        },
+        share: function(content) {
+          window.flutter_inappwebview.callHandler('share', content);
+        },
+        call: function(number) {
+          window.flutter_inappwebview.callHandler('call', number);
+        },
+        getOfferings: function() {
+          return window.flutter_inappwebview.callHandler('getOfferings');
+        },
+        purchaseProduct: function(productId) {
+          return window.flutter_inappwebview.callHandler('purchaseProduct', productId);
+        },
+        restorePurchases: function() {
+          return window.flutter_inappwebview.callHandler('restorePurchases');
+        },
+        getCustomerInfo: function() {
+          return window.flutter_inappwebview.callHandler('getCustomerInfo');
+        },
+        isPremiumActive: function() {
+          return window.flutter_inappwebview.callHandler('isPremiumActive');
+        }
+      };
+    ''';
     
     return PopScope(
       canPop: false,
@@ -320,7 +338,63 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
             Expanded(
               child: _isOffline
                   ? OfflinePageWidget(onRetry: _reloadPage)
-                  : WebViewWidget(controller: _webViewController),
+                  : InAppWebView(
+                      initialUrlRequest: URLRequest(url: WebUri(AppConfig.primaryUrl)),
+                      initialUserScripts: UnmodifiableListView<UserScript>([
+                        UserScript(
+                          source: jsBridgeCode,
+                          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+                        ),
+                      ]),
+                      initialSettings: InAppWebViewSettings(
+                        javaScriptEnabled: true,
+                        useShouldOverrideUrlLoading: true,
+                        mediaPlaybackRequiresUserGesture: false,
+                        allowsBackForwardNavigationGestures: true,
+                      ),
+                      onWebViewCreated: (controller) {
+                        _webViewController = controller;
+                        _setupJavaScriptHandlers();
+                      },
+                      onLoadStart: (controller, url) {
+                        setState(() {
+                          _isLoading = true;
+                          _loadingProgress = 0.0;
+                        });
+                      },
+                      onProgressChanged: (controller, progress) {
+                        setState(() {
+                          _loadingProgress = progress / 100.0;
+                        });
+                      },
+                      onLoadStop: (controller, url) async {
+                        setState(() {
+                          _isLoading = false;
+                          _loadingProgress = 1.0;
+                        });
+                        
+                        // Update back button state
+                        final canGoBack = await controller.canGoBack();
+                        setState(() {
+                          _canGoBack = canGoBack;
+                        });
+                        
+                        // Notify ads service of navigation
+                        ref.read(adsServiceProvider).onPageNavigation();
+                      },
+                      shouldOverrideUrlLoading: (controller, navigationAction) async {
+                        final request = navigationAction.request;
+                        final urlString = request.url?.toString() ?? '';
+                        final allowed = _handleNavigationRequest(urlString);
+                        return allowed 
+                            ? NavigationActionPolicy.ALLOW 
+                            : NavigationActionPolicy.CANCEL;
+                      },
+                      onReceivedError: (controller, request, error) {
+                        debugPrint('WebView error: ${error.description}');
+                        _handleWebViewError();
+                      },
+                    ),
             ),
             
             if (showBannerAd && bannerPlacement == 'bottom')
