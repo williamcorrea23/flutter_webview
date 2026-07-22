@@ -11,10 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   
-  # WebView
-  webview_flutter: ^4.4.2
-  webview_flutter_android: ^3.12.1
-  webview_flutter_wkwebview: ^3.9.4
+  # WebView & Purchases
+  flutter_inappwebview: ^6.0.0
+  purchases_flutter: ^6.0.0
   
   # Firebase
   firebase_core: ^2.24.2

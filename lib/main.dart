@@ -10,6 +10,7 @@ import 'core/config/firebase_options.dart';
 import 'core/services/remote_config_service.dart';
 import 'core/services/ads_service.dart';
 import 'core/services/consent_service.dart';
+import 'core/services/purchases_service.dart';
 import 'shared/constants/app_constants.dart';
 import 'shared/theme/app_theme.dart';
 import 'features/webview/presentation/pages/webview_page.dart';
@@ -72,6 +73,9 @@ class _UsmanSandaPalaceAppState extends ConsumerState<UsmanSandaPalaceApp> {
       
       // Initialize remote config
       await ref.read(remoteConfigServiceProvider).initialize();
+      
+      // Initialize purchases service
+      await ref.read(purchasesServiceProvider).initialize();
       
       // Initialize ads service
       await ref.read(adsServiceProvider).initialize();

@@ -59,6 +59,8 @@ class AppConfig {
     'ads.interstitial.adUnitId.android': 'ca-app-pub-3940256099942544/1033173712',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',
     'config.version': 1,
+    'revenuecat.apiKey.android': 'goog_placeholder_api_key_android',
+    'revenuecat.apiKey.ios': 'appl_placeholder_api_key_ios',
   };
   
   // AdMob test unit IDs
