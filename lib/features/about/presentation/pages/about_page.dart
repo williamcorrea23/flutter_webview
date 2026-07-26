@@ -93,7 +93,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                   Text(
                     'Version ${_packageInfo?.version ?? 'Unknown'}',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.7),
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -222,7 +222,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
               child: Text(
                 'Made with ❤️ for Usman Sanda Palace',
                 style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ),
