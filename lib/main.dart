@@ -55,6 +55,8 @@ Future<void> _initializeApp() async {
 }
 
 class UsmanSandaPalaceApp extends ConsumerStatefulWidget {
+  const UsmanSandaPalaceApp({super.key});
+
   @override
   ConsumerState<UsmanSandaPalaceApp> createState() => _UsmanSandaPalaceAppState();
 }
