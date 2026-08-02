@@ -7,12 +7,13 @@ import 'package:logger/logger.dart';
 import 'remote_config_service.dart';
 
 final purchasesServiceProvider = Provider<PurchasesService>((ref) {
-  final remoteConfig = ref.watch(remoteConfigServiceProvider);
+  final remoteConfig = ref.read(remoteConfigServiceProvider);
   return PurchasesService(remoteConfig);
 });
 
 class PurchasesService {
   static final Logger _logger = Logger();
+  static const String _proEntitlement = 'The Bug Amazing Factory of Apps Pro';
   final RemoteConfigService _remoteConfig;
   bool _isInitialized = false;
 
@@ -20,19 +21,30 @@ class PurchasesService {
 
   bool get isInitialized => _isInitialized;
 
+  String _normalizePackageIdentifier(String identifier) {
+    return switch (identifier.trim().toLowerCase()) {
+      'monthly' || '\$rc_monthly' => '\$rc_monthly',
+      'yearly' || 'annual' || '\$rc_annual' => '\$rc_annual',
+      'lifetime' || '\$rc_lifetime' => '\$rc_lifetime',
+      final value => value,
+    };
+  }
+
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     final androidKey = _remoteConfig.revenueCatApiKeyAndroid;
     final iosKey = _remoteConfig.revenueCatApiKeyIOS;
 
-    if (androidKey.isEmpty || iosKey.isEmpty) {
+    final currentKey = Platform.isAndroid ? androidKey : iosKey;
+    if (currentKey.isEmpty) {
       _logger.w('RevenueCat API Keys are empty. Skipping initialization.');
       return;
     }
 
-    if (androidKey.contains('placeholder') || iosKey.contains('placeholder')) {
-      _logger.w('RevenueCat API Keys are placeholders. Skipping initialization in production.');
+    if (currentKey.contains('placeholder')) {
+      _logger.w(
+          'RevenueCat API Keys are placeholders. Skipping initialization in production.');
       if (kReleaseMode) return;
     }
 
@@ -66,8 +78,7 @@ class PurchasesService {
     if (!_isInitialized) return false;
     try {
       final customerInfo = await Purchases.getCustomerInfo();
-      // Adjust entitlement ID to match your configuration. Default is 'premium'.
-      return customerInfo.entitlements.all['premium']?.isActive ?? false;
+      return customerInfo.entitlements.all[_proEntitlement]?.isActive ?? false;
     } catch (e) {
       _logger.e('Error checking premium status: $e');
       return false;
@@ -114,13 +125,16 @@ class PurchasesService {
         return {'success': false, 'error': 'No current offerings found'};
       }
 
+      final normalizedIdentifier =
+          _normalizePackageIdentifier(packageIdentifier);
       final package = currentOffering.availablePackages.firstWhere(
-        (pkg) => pkg.identifier == packageIdentifier,
+        (pkg) => pkg.identifier == normalizedIdentifier,
         orElse: () => throw Exception('Package $packageIdentifier not found'),
       );
 
       final customerInfo = await Purchases.purchasePackage(package);
-      final hasPremium = customerInfo.entitlements.all['premium']?.isActive ?? false;
+      final hasPremium =
+          customerInfo.entitlements.all[_proEntitlement]?.isActive ?? false;
 
       return {
         'success': hasPremium,
@@ -139,7 +153,8 @@ class PurchasesService {
     }
     try {
       final customerInfo = await Purchases.restorePurchases();
-      final hasPremium = customerInfo.entitlements.all['premium']?.isActive ?? false;
+      final hasPremium =
+          customerInfo.entitlements.all[_proEntitlement]?.isActive ?? false;
 
       return {
         'success': hasPremium,

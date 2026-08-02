@@ -1,13 +1,13 @@
 class AppConstants {
   // App Info
-  static const String appName = 'Usman Sanda Palace';
+  static const String appName = 'Master ABAP';
   static const String appVersion = '1.0.0';
-  static const String legalNotice = '© Usman Sanda Palace. All Rights Reserved. Developed by Compilemama.';
+  static const String legalNotice = '© Master ABAP. All Rights Reserved. Developed by Compilemama.';
   
   // URLs
-  static const String primaryUrl = 'https://usmansandapalace.com/';
-  static const String privacyPolicyUrl = 'https://usmansandapalace.com/privacy-policy';
-  static const String termsOfServiceUrl = 'https://usmansandapalace.com/terms-of-service';
+  static const String primaryUrl = 'https://supabapnew.vercel.app/';
+  static const String privacyPolicyUrl = 'https://supabapnew.vercel.app/privacy-policy';
+  static const String termsOfServiceUrl = 'https://supabapnew.vercel.app/terms-of-service';
   
   // Timeouts and Delays
   static const Duration networkTimeout = Duration(seconds: 30);
@@ -89,7 +89,7 @@ class AppConstants {
     <h1>You're Offline</h1>
     <p>Please check your internet connection and try again. We'll automatically retry when your connection is restored.</p>
     <button class="retry-button" onclick="window.location.reload()">Try Again</button>
-    <div class="app-name">Usman Sanda Palace</div>
+    <div class="app-name">Master ABAP</div>
 </body>
 </html>
   ''';

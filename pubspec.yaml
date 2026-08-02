@@ -1,11 +1,11 @@
 name: usman_sanda_palace
 description: "Official mobile app for Usman Sanda Palace"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.4.7+3
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
-  flutter: ">=3.13.0"
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:

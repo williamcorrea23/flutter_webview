@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Usman Sanda Palace</string>
+	<string>Master ABAP</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,19 +45,15 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	
-	<!-- URL Schemes for Deep Links -->
-	<key>CFBundleURLTypes</key>
+	<!-- URL schemes queried by url_launcher -->
+	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>usmansandapalace.com</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>https</string>
-			</array>
-		</dict>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>geo</string>
+		<string>whatsapp</string>
 	</array>
-	
 	<!-- Privacy Permissions -->
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to let you upload photos to the website.</string>
@@ -93,7 +89,7 @@
 		<false/>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<key>usmansandapalace.com</key>
+			<key>supabapnew.vercel.app</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
 				<false/>
@@ -118,8 +114,7 @@
 	<!-- Required for iOS 14+ WebView -->
 	<key>WKAppBoundDomains</key>
 	<array>
-		<string>usmansandapalace.com</string>
-		<string>www.usmansandapalace.com</string>
+		<string>supabapnew.vercel.app</string>
 	</array>
 </dict>
 </plist>

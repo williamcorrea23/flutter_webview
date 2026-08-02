@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:usman_sanda_palace/core/services/purchases_service.dart';
 import 'package:usman_sanda_palace/core/services/remote_config_service.dart';
 
-class FakeRemoteConfigService implements RemoteConfigService {
+class FakeRemoteConfigService extends RemoteConfigService {
   @override
   String get revenueCatApiKeyAndroid => 'goog_fake_key';
 

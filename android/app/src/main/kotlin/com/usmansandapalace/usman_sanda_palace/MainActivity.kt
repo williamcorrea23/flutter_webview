@@ -1,4 +1,4 @@
-package com.usmansandapalace.usman_sanda_palace
+package co.supabap.android
 
 import io.flutter.embedding.android.FlutterActivity
 

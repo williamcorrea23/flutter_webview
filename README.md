@@ -1,19 +1,19 @@
-# 🏰 Usman Sanda Palace Mobile App
+# Master ABAP Mobile App
 
 A professional Flutter WebView application for Android and iOS with AdMob monetization and Firebase integration.
 
 ## 📱 Features
 
-- 🌐 **WebView Integration** - Seamless loading of https://usmansandapalace.com
+- 🌐 **WebView Integration** - Seamless loading of https://supabapnew.vercel.app
 - 💰 **AdMob Monetization** - Banner and interstitial ads with remote control
 - 🔥 **Firebase Integration** - Analytics, Remote Config, and real-time updates
 - ⚙️ **Admin Dashboard** - Remote configuration management
 - 📱 **Cross-Platform** - Works on Android and iOS
-- 🚀 **Auto-Build** - GitHub Actions for automatic APK generation
+- 🚀 **Auto-Build** - GitHub Actions for analysis, tests and APK generation
 
 ## 🔧 Technical Stack
 
-- **Flutter 3.24.3** with null safety
+- **Flutter 3.44.1** with null safety
 - **Firebase Core** for backend services
 - **Google Mobile Ads** for monetization
 - **WebView Flutter** for web content
@@ -80,12 +80,12 @@ lib/
 
 ### Android
 ```bash
-flutter build apk --release --flavor production
+flutter build apk --release
 ```
 
 ### iOS
 ```bash
-flutter build ios --release --flavor production
+flutter build ios --release
 ```
 
 ## 📊 Analytics
@@ -115,7 +115,6 @@ AdMob integration includes:
 
 - **Android** 5.0+ (API level 21+)
 - **iOS** 11.0+
-- **Web** (Progressive Web App)
 
 ## 🏗️ Architecture
 
@@ -157,7 +156,7 @@ The app includes:
 
 For support and updates:
 - Repository: https://github.com/Nurnobi101/usman-sanda-palace-app
-- Website: https://usmansandapalace.com
+- Website: https://supabapnew.vercel.app
 - Issues: GitHub Issues tracker
 
 ## 📄 License
@@ -166,4 +165,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Built with ❤️ for Usman Sanda Palace**
+**Built with ❤️ for Master ABAP**

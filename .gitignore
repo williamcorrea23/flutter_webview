@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local backend credentials (never commit)
+file.env
+
 # Symbolication related
 app.*.symbols
 

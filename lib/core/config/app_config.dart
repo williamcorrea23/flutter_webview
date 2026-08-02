@@ -2,16 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  static const String appName = 'Usman Sanda Palace';
-  static const String primaryDomain = 'usmansandapalace.com';
-  static const String primaryUrl = 'https://usmansandapalace.com/';
+  static const String appName = 'Master ABAP';
+  static const String primaryDomain = 'supabapnew.vercel.app';
+  static const String primaryUrl = 'https://supabapnew.vercel.app/';
   
   // Bundle IDs
-  static const String androidBundleId = 'com.usmansandapalace.app';
-  static const String iosBundleId = 'com.usmansandapalace.app';
+  static const String androidBundleId = 'co.supabap.android';
+  static const String iosBundleId = 'co.supabap.android';
   
   // Legal
-  static const String legalNotice = '© Usman Sanda Palace. All Rights Reserved. Developed by Compilemama.';
+  static const String legalNotice = '© Master ABAP. All Rights Reserved. Developed by Compilemama.';
   
   // Environment
   static bool get isDevelopment => kDebugMode;
@@ -26,8 +26,7 @@ class AppConfig {
   
   // Allowed domains for WebView
   static final List<String> allowedDomains = [
-    'usmansandapalace.com',
-    'www.usmansandapalace.com',
+    'supabapnew.vercel.app',
     // Add subdomains and CDNs as needed
   ];
   
@@ -52,14 +51,14 @@ class AppConfig {
     'ads.testMode': true,
     'ads.banner.enabled': true,
     'ads.banner.placement': 'bottom',
-    'ads.banner.adUnitId.android': 'ca-app-pub-3940256099942544/6300978111',
+    'ads.banner.adUnitId.android': 'ca-app-pub-8785125235072301/5430581499',
     'ads.banner.adUnitId.ios': 'ca-app-pub-3940256099942544/2934735716',
     'ads.interstitial.enabled': false,
     'ads.interstitial.frequency': 3,
-    'ads.interstitial.adUnitId.android': 'ca-app-pub-3940256099942544/1033173712',
+    'ads.interstitial.adUnitId.android': 'ca-app-pub-8785125235072301/9453640886',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',
     'config.version': 1,
-    'revenuecat.apiKey.android': 'goog_placeholder_api_key_android',
+    'revenuecat.apiKey.android': 'goog_FqFNSCJonpAkvKrGrGwaFLKYcZL',
     'revenuecat.apiKey.ios': 'appl_placeholder_api_key_ios',
   };
   

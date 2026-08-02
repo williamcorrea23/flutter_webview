@@ -24,11 +24,20 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.3'
+        flutter-version: '3.44.1'
         channel: 'stable'
+
+    - name: Prepare Firebase Android config
+      run: cp google-services.json android/app/google-services.json
 
     - name: Get dependencies
       run: flutter pub get
+
+    - name: Analyze
+      run: flutter analyze
+
+    - name: Test
+      run: flutter test
 
     - name: Build APK
       run: flutter build apk --release
@@ -36,15 +45,15 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: usman-sanda-palace-apk
+        name: master-abap-apk
         path: build/app/outputs/flutter-apk/app-release.apk
 
     - name: Create Release
       if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: Usman Sanda Palace v1.0.${{ github.run_number }}
+        tag_name: v1.4.${{ github.run_number }}
+        name: Master ABAP v1.4.${{ github.run_number }}
         body: |
           🏰 Usman Sanda Palace Mobile App
           

@@ -179,7 +179,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                     onTap: () async {
                       await ref.read(remoteConfigServiceProvider).refresh();
                       await ref.read(adsServiceProvider).refreshAds();
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Settings refreshed'),
@@ -220,7 +220,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             // Footer
             Center(
               child: Text(
-                'Made with ❤️ for Usman Sanda Palace',
+                'Made with ❤️ for Master ABAP',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
