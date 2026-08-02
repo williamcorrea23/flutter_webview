@@ -132,7 +132,9 @@ class PurchasesService {
         orElse: () => throw Exception('Package $packageIdentifier not found'),
       );
 
-      final customerInfo = await Purchases.purchasePackage(package);
+      final purchaseResult =
+          await Purchases.purchase(PurchaseParams.package(package));
+      final customerInfo = purchaseResult.customerInfo;
       final hasPremium =
           customerInfo.entitlements.all[_proEntitlement]?.isActive ?? false;
 
