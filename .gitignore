@@ -36,6 +36,11 @@ migrate_working_dir/
 # Local backend credentials (never commit)
 file.env
 
+# Android release signing secrets
+android/key.properties
+android/*.jks
+android/*.keystore
+
 # Symbolication related
 app.*.symbols
 

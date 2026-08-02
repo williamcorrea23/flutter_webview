@@ -56,7 +56,8 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     // Legacy app commands
     controller.addJavaScriptHandler(
       handlerName: 'openMaps',
-      callback: (args) {
+      callback: (args) async {
+        if (!await _isTrustedBridgeContext()) return;
         final location = _stringArgument(args);
         if (location != null) {
           _launchExternalUrl(Uri(scheme: 'geo', query: location).toString());
@@ -67,6 +68,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'share',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) return;
         final content = _stringArgument(args);
         if (content != null) {
           await Share.share(content);
@@ -76,7 +78,8 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
 
     controller.addJavaScriptHandler(
       handlerName: 'call',
-      callback: (args) {
+      callback: (args) async {
+        if (!await _isTrustedBridgeContext()) return;
         final number = _stringArgument(args);
         if (number != null &&
             RegExp(r'^[0-9+()\-\s]{3,32}$').hasMatch(number)) {
@@ -89,6 +92,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'getOfferings',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) return [];
         return await purchasesService.getOfferings();
       },
     );
@@ -96,6 +100,9 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'purchaseProduct',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) {
+          return {'success': false, 'error': 'Untrusted WebView origin'};
+        }
         final packageId = _stringArgument(args);
         if (packageId == null) {
           return {'success': false, 'error': 'Product identifier is required'};
@@ -107,6 +114,9 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'restorePurchases',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) {
+          return {'success': false, 'error': 'Untrusted WebView origin'};
+        }
         return await purchasesService.restorePurchases();
       },
     );
@@ -114,6 +124,9 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'getCustomerInfo',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) {
+          return {'success': false, 'error': 'Untrusted WebView origin'};
+        }
         return await purchasesService.getCustomerInfo();
       },
     );
@@ -121,6 +134,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'isPremiumActive',
       callback: (args) async {
+        if (!await _isTrustedBridgeContext()) return false;
         return await purchasesService.isPremiumActive();
       },
     );
@@ -130,6 +144,13 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     if (args.length != 1 || args.first is! String) return null;
     final value = (args.first as String).trim();
     return value.isEmpty || value.length > 512 ? null : value;
+  }
+
+  Future<bool> _isTrustedBridgeContext() async {
+    final uri = await _webViewController?.getUrl();
+    return uri != null &&
+        uri.scheme.toLowerCase() == 'https' &&
+        _isAllowedDomain(uri.host);
   }
 
   bool _handleNavigationRequest(String requestUrl) {

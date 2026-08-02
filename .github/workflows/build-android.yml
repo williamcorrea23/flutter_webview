@@ -55,16 +55,14 @@ jobs:
         tag_name: v1.4.${{ github.run_number }}
         name: Master ABAP v1.4.${{ github.run_number }}
         body: |
-          🏰 Usman Sanda Palace Mobile App
-          
-          ### 📱 Download APK:
+          Master ABAP Mobile App
+          ### Download APK
           Ready for installation on Android devices!
-          
-          ### ✨ Features:
-          - 🌐 WebView integration with usmansandapalace.com
-          - 💰 AdMob monetization
-          - 🔥 Firebase analytics
-          - 📱 Professional mobile app
+          ### Features
+          - WebView integration with supabapnew.vercel.app
+          - AdMob monetization
+          - Firebase analytics
+          - RevenueCat purchases
         files: |
           build/app/outputs/flutter-apk/app-release.apk
         draft: false

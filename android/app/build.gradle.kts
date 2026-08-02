@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseKeystoreProperties = Properties()
+val releaseKeystoreFile = rootProject.file("key.properties")
+if (releaseKeystoreFile.exists()) {
+    releaseKeystoreFile.inputStream().use { releaseKeystoreProperties.load(it) }
 }
 
 android {
@@ -29,7 +37,14 @@ android {
 
     buildTypes {
         release {
-            // Configure a release keystore through a private Gradle properties file.
+            if (releaseKeystoreFile.exists()) {
+                signingConfig = signingConfigs.create("release") {
+                    keyAlias = releaseKeystoreProperties["keyAlias"] as String
+                    keyPassword = releaseKeystoreProperties["keyPassword"] as String
+                    storeFile = file(releaseKeystoreProperties["storeFile"] as String)
+                    storePassword = releaseKeystoreProperties["storePassword"] as String
+                }
+            }
         }
     }
 }

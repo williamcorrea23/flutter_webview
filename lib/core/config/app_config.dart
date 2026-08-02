@@ -48,7 +48,7 @@ class AppConfig {
   // Remote Config defaults
   static const Map<String, dynamic> remoteConfigDefaults = {
     'ads.enabled': true,
-    'ads.testMode': true,
+    'ads.testMode': false,
     'ads.banner.enabled': true,
     'ads.banner.placement': 'bottom',
     'ads.banner.adUnitId.android': 'ca-app-pub-8785125235072301/5430581499',

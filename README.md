@@ -83,6 +83,10 @@ lib/
 flutter build apk --release
 ```
 
+For a Play Store-signed build, copy `android/key.properties.example` to
+`android/key.properties` and fill in the private keystore values. Never commit
+`key.properties` or the keystore file.
+
 ### iOS
 ```bash
 flutter build ios --release
