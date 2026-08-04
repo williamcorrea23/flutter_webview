@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:usman_sanda_palace/core/services/purchases_service.dart';
-import 'package:usman_sanda_palace/core/services/remote_config_service.dart';
+import 'package:master_abap/core/services/purchases_service.dart';
+import 'package:master_abap/core/services/remote_config_service.dart';
 
 class FakeRemoteConfigService extends RemoteConfigService {
   @override

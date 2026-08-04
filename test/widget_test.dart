@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:usman_sanda_palace/features/webview/presentation/widgets/offline_page_widget.dart';
+import 'package:master_abap/features/webview/presentation/widgets/offline_page_widget.dart';
 
 void main() {
   testWidgets('offline page exposes a working retry action', (tester) async {
