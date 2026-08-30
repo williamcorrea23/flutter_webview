@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
-import '../../../../core/services/remote_config_service.dart';
 import '../../../../core/services/ads_service.dart';
 import '../../../../core/services/consent_service.dart';
+import '../../../../core/services/purchases_service.dart';
+import '../../../../core/services/remote_config_service.dart';
 import '../../../../shared/constants/app_constants.dart';
 
 class AboutPage extends ConsumerStatefulWidget {
@@ -27,27 +28,38 @@ class _AboutPageState extends ConsumerState<AboutPage> {
 
   Future<void> _loadPackageInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
     setState(() {
       _packageInfo = packageInfo;
     });
   }
 
+  /// Opens [url] outside the app, and says so when it cannot.
+  ///
+  /// This used to gate on `canLaunchUrl` and do nothing when it returned
+  /// false, which is exactly what happened on every Android 11+ device:
+  /// package visibility makes `canLaunchUrl` report false for `https` unless
+  /// the manifest declares an `https` intent in <queries>, and the manifest
+  /// declared tel/mailto/sms/geo/whatsapp but not https. All three links on
+  /// this page were dead, silently, because the `catch` only fires on a throw.
+  ///
+  /// The manifest now declares https. Belt and braces, the launch is attempted
+  /// unconditionally and the failure is reported from `launchUrl`'s own return
+  /// value, so a future gap in <queries> is visible instead of mute.
   Future<void> _launchUrl(String url) async {
+    var launched = false;
     try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch $url')),
-        );
-      }
+      launched = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      launched = false;
     }
+    if (launched || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not open $url')),
+    );
   }
 
   @override
@@ -69,17 +81,13 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             Center(
               child: Column(
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: colorScheme.primary,
-                    ),
-                    child: Icon(
-                      Icons.web,
-                      size: 60,
-                      color: colorScheme.onPrimary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/icons/app_icon.png',
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -87,6 +95,14 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                     AppConstants.appName,
                     style: textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppConstants.aboutDescription,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -194,12 +210,16 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             
             const SizedBox(height: 16),
             
-            // Debug Information (only in development)
-            if (AppConfig.isDevelopment) ...[
+            // Diagnostics. Deliberately NOT gated on AppConfig.isDevelopment:
+            // in a release build that is false, so the one panel that explains
+            // why ads are missing (consent state, canRequestAds, whether a
+            // banner actually loaded, Premium) was invisible exactly when it
+            // was needed. Collapsed by default, so it costs a tap to open.
+            ...[
               Card(
                 child: ExpansionTile(
                   leading: Icon(Icons.bug_report, color: colorScheme.primary),
-                  title: const Text('Debug Information'),
+                  title: const Text('Diagnostics'),
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -258,6 +278,15 @@ class _AboutPageState extends ConsumerState<AboutPage> {
         Text('Status: ${consentService.consentStatus}'),
         Text('Can Request Ads: ${consentService.canRequestAds}'),
         Text('Personalized Ads: ${consentService.isPersonalizedAdsAllowed}'),
+        const SizedBox(height: 8),
+        // Premium suppresses every ad (webview_page.dart). Without it here,
+        // "Premium resolved true" and "ads are broken" look identical.
+        const Text('Premium:', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(switch (ref.watch(isPremiumProvider)) {
+          AsyncData(:final value) => 'Active: $value  (ads hidden: $value)',
+          AsyncError(:final error) => 'Lookup failed: $error',
+          _ => 'Checking… (ads shown until this resolves)',
+        }),
       ],
     );
   }

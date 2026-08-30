@@ -7,7 +7,8 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false">
-        <!-- Test App ID. Replace with the production App ID before release. -->
+        <!-- Production AdMob App ID for publisher pub-8785125235072301.
+             (It was previously labelled a test id, which it never was.) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-8785125235072301~9902780176" />
@@ -49,6 +50,19 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Required for url_launcher on Android 11+ (package visibility).
+             Without an https entry here canLaunchUrl() reports false and every
+             outbound web link — Privacy Policy, Terms of Service, Visit
+             Website, and any external link tapped inside the WebView — fails
+             silently. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tel" />

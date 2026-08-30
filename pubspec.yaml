@@ -18,68 +18,83 @@ dependencies:
   # Firebase
   firebase_core: ^2.24.2
   firebase_remote_config: ^4.3.8
-  firebase_analytics: ^10.7.4
   firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
-  
+  google_sign_in: ^6.2.1
+
   # Ads & Consent
   google_mobile_ads: ^5.1.0
-  
+
   # Networking & Connectivity
   connectivity_plus: ^5.0.2
-  http: ^1.1.2
-  
+
   # UI & Navigation
   cupertino_icons: ^1.0.2
-  flutter_svg: ^2.0.9
-  cached_network_image: ^3.3.0
-  
+
   # Utilities
   url_launcher: ^6.2.1
   share_plus: ^7.2.1
   package_info_plus: ^4.2.0
-  device_info_plus: ^9.1.1
-  permission_handler: ^11.1.0
-  path_provider: ^2.1.1
-  
+
   # State Management
   flutter_riverpod: ^2.4.9
-  riverpod_annotation: ^2.3.3
-  
+
   # Development
-  flutter_dotenv: ^5.1.0
   logger: ^2.0.2+1
+
+# Removed as unused — every one of these had zero imports across lib/ and
+# test/, and each shipped native code into the APK for nothing:
+#   cloud_firestore, firebase_analytics, permission_handler (which also merges
+#   permissions into the manifest), device_info_plus, path_provider (and its
+#   path_provider_foundation dependency_override), cached_network_image,
+#   flutter_svg, http, riverpod_annotation, json_annotation, and the
+#   riverpod_generator / build_runner / json_serializable trio, which had no
+#   generated files to show for themselves.
+#   flutter_dotenv went with .env.development/.env.production: the only value
+#   they carried was a FIREBASE_PROJECT_ID inherited from the upstream template
+#   this repo was forked from, which no code read and which named a different
+#   Firebase project than the one google-services.json and firebase_options.dart
+#   actually use (abap-aed31) — and they were bundled as assets into every APK.
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  
-  # Code Generation
-  riverpod_generator: ^2.3.9
-  build_runner: ^2.4.7
-  json_annotation: ^4.8.1
-  json_serializable: ^6.7.1
-  
+
   # Icons & Splash
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.3.6
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
     - assets/icons/
-    - .env.development
-    - .env.production
 
 # App Icons Configuration
-flutter_icons:
-  android: "launcher_icon"
-  ios: true
+# `android: true` (not a name string) is deliberate: it overwrites ic_launcher.*,
+# which is what AndroidManifest.xml already points at (android:icon="@mipmap/ic_launcher").
+# A name string would emit @mipmap/<name> instead and leave the manifest's
+# ic_launcher untouched — that is how the default Flutter logo kept shipping.
+flutter_launcher_icons:
+  android: true
+  # ios MUST stay false until the iOS project is regenerated: ios/ has no
+  # Runner.xcodeproj (only Flutter/ and Runner/), so the tool's last step throws
+  # PathNotFoundException on ios/Runner.xcodeproj/project.pbxproj. That kills the
+  # Dart VM mid-run and its pending Android writes never flush — which is how
+  # ic_launcher_foreground.png and colors.xml were left 0 bytes.
+  # Re-enable after `flutter create --platforms=ios .`.
+  ios: false
   image_path: "assets/icons/app_icon.png"
-  min_sdk_android: 21
+  # Android 8+ masks the icon to the device shape. app_icon.png is full-bleed
+  # artwork whose wordmark reaches the edge, so it cannot be used as the
+  # adaptive layer directly — app_icon_foreground.png is the same art inset
+  # into the centre 66.7% safe zone, over the artwork's own border colour.
+  adaptive_icon_background: "#1D4453"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
+  # The App Store rejects icons with an alpha channel.
+  remove_alpha_ios: true
+  min_sdk_android: 24
   web:
     generate: false
   windows:
@@ -88,14 +103,17 @@ flutter_icons:
     generate: false
 
 # Splash Screen Configuration
+# Uses the app's own ABAP icon over the brand colour (SupABAP.aia &HFF525CC7).
+# It previously showed assets/images/logoMM.png, an asset the .aia ships but
+# never references — no Screen1 component displays it.
 flutter_native_splash:
-  color: "#1a365d"
-  image: "assets/images/splash_logo.png"
-  color_dark: "#0f172a"
-  image_dark: "assets/images/splash_logo_dark.png"
+  color: "#525CC7"
+  image: "assets/icons/app_icon.png"
+  color_dark: "#525CC7"
+  image_dark: "assets/icons/app_icon.png"
   android_12:
-    image: "assets/images/splash_logo.png"
-    icon_background_color: "#1a365d"
-    image_dark: "assets/images/splash_logo_dark.png"
-    icon_background_color_dark: "#0f172a"
+    image: "assets/icons/app_icon.png"
+    icon_background_color: "#525CC7"
+    image_dark: "assets/icons/app_icon.png"
+    icon_background_color_dark: "#525CC7"
   web: false

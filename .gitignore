@@ -40,6 +40,8 @@ file.env
 android/key.properties
 android/*.jks
 android/*.keystore
+/android.keystore
+/android.jks
 
 # Symbolication related
 app.*.symbols
@@ -51,3 +53,44 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Bundled build outputs and JVM crash dumps that predate the /build/ and
+# *.log rules above (gitignore does not untrack what is already tracked).
+hs_err_pid*.log
+*.aia
+.env
+.env.*
+
+# Generated trees that were committed before the rules above existed, and so
+# kept showing up in every diff: gitignore never untracks what git already
+# tracks, it only stops NEW files from being added. They were removed from the
+# index with `git rm -r --cached` (the working copies are untouched); these
+# rules are what stops them coming back.
+#
+# /build/ above only anchors the repo root, so the module-level build
+# directories need their own rule.
+**/build/
+.gradle/
+
+# A full 266 MB Oracle JDK was committed under android/. Nothing in the build
+# refers to it -- android/gradle.properties sets no org.gradle.java.home, and
+# CI installs its own Zulu 17 -- so it is a local toolchain that belongs on the
+# developer's machine, not in the repository.
+android/oracleJdk-26/
+
+# Machine-specific SDK paths. flutter_tools rewrites this file on every build
+# from pubspec.yaml, so tracking it only ever produced conflicts.
+local.properties
+
+# Session logs written by the sc4sap tooling.
+.sc4sap/
+
+# Shell build outputs dropped in the repo root while testing. Everything under
+# /build/ is already ignored, but a hand-copied APK next to pubspec.yaml is not,
+# and that is how large binaries end up in a history.
+*.apk
+*.aab
+
+# Microsoft Office lock files. Never belong in a repository, and one of them
+# (~$Calculadora_...xls) very nearly landed in the commit above.
+~$*

@@ -159,7 +159,7 @@ The app includes:
 ## 📞 Support
 
 For support and updates:
-- Repository: https://github.com/Nurnobi101/usman-sanda-palace-app
+- Repository: https://github.com/williamcorrea23/flutter_webview
 - Website: https://supabapnew.vercel.app
 - Issues: GitHub Issues tracker
 

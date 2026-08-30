@@ -30,6 +30,34 @@ jobs:
     - name: Prepare Firebase Android config
       run: cp google-services.json android/app/google-services.json
 
+    # Decodes the keystore OUTSIDE the workspace, so it can never be swept up
+    # by actions/upload-artifact, and hands the build its credentials through
+    # the environment rather than a .properties file — see the comment at the
+    # top of android/app/build.gradle.kts for why that distinction matters.
+    - name: Restore release keystore
+      id: signing
+      env:
+        KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      run: |
+        # All four, because build.gradle.kts requires all four: with any one of
+        # them blank it falls back to the debug key, exits 0, and produces a
+        # perfectly installable app-release.apk. Gating on the keystore alone
+        # would let a typo'd or Environment-scoped secret publish that debug
+        # build as an official Release — the precise outcome this gate exists
+        # to prevent. The two files have to agree on what "signed" means.
+        if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] \
+          || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+          echo "Signing secrets incomplete; this build will use the debug key."
+          echo "signed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+        echo "keystore=$RUNNER_TEMP/release.keystore" >> "$GITHUB_OUTPUT"
+        echo "signed=true" >> "$GITHUB_OUTPUT"
+
     - name: Get dependencies
       run: flutter pub get
 
@@ -39,7 +67,17 @@ jobs:
     - name: Test
       run: flutter test
 
+    # Without these the release build type falls back to the DEBUG key, which
+    # still produces an installable app-release.apk for the artifact below.
+    # (With no signing config at all, AGP would emit app-release-unsigned.apk
+    # and flutter_tools would abort with "Gradle build failed to produce an
+    # .apk file" — so the fallback is what keeps an unsigned CI run green.)
     - name: Build APK
+      env:
+        ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       run: flutter build apk --release
 
     - name: Upload APK
@@ -48,8 +86,11 @@ jobs:
         name: master-abap-apk
         path: build/app/outputs/flutter-apk/app-release.apk
 
+    # Gated on a real signature. A debug-signed binary must never be published
+    # as a release: nobody who installs it can later upgrade to a Play-signed
+    # build, because the signatures do not match.
     - name: Create Release
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' && steps.signing.outputs.signed == 'true'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v1.4.${{ github.run_number }}
@@ -61,7 +102,6 @@ jobs:
           ### Features
           - WebView integration with supabapnew.vercel.app
           - AdMob monetization
-          - Firebase analytics
           - RevenueCat purchases
         files: |
           build/app/outputs/flutter-apk/app-release.apk
@@ -69,3 +109,7 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Clean up signing material
+      if: always()
+      run: rm -f "$RUNNER_TEMP/release.keystore"

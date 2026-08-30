@@ -1,37 +1,25 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   static const String appName = 'Master ABAP';
-  static const String primaryDomain = 'supabapnew.vercel.app';
   static const String primaryUrl = 'https://supabapnew.vercel.app/';
-  
-  // Bundle IDs
-  static const String androidBundleId = 'co.supabap.android';
-  static const String iosBundleId = 'co.supabap.android';
-  
-  // Legal
-  static const String legalNotice = '© Master ABAP. All Rights Reserved. Developed by Compilemama.';
-  
+
   // Environment
   static bool get isDevelopment => kDebugMode;
   static bool get isProduction => kReleaseMode;
-  
-  static String get envFileName {
-    return isDevelopment ? '.env.development' : '.env.production';
-  }
-  
-  // Firebase
-  static String get firebaseProjectId => dotenv.get('FIREBASE_PROJECT_ID', fallback: '');
-  
-  // Allowed domains for WebView
-  static final List<String> allowedDomains = [
+
+  // Allowed domains for WebView.
+  //
+  // This list is the app's trust boundary, not a convenience: anything on it
+  // may run inside the WebView, in a frame, and therefore reach the JS bridge
+  // that exposes purchases, sign-in and the Firebase ID token. Adding a CDN or
+  // an analytics host here grants it all of that. See NavigationPolicy.
+  static const List<String> allowedDomains = [
     'supabapnew.vercel.app',
-    // Add subdomains and CDNs as needed
   ];
-  
+
   // External link patterns (will open in system browser)
-  static final List<String> externalLinkPatterns = [
+  static const List<String> externalLinkPatterns = [
     r'^tel:',
     r'^mailto:',
     r'^sms:',
@@ -44,8 +32,14 @@ class AppConfig {
     r'^maps:',
     r'^geo:',
   ];
-  
-  // Remote Config defaults
+
+  // Remote Config defaults.
+  //
+  // The iOS ad unit ids below are Google's TEST units, and the iOS RevenueCat
+  // key is a placeholder. That is survivable only while iOS is not shipped —
+  // see the UnsupportedError in firebase_options.dart, which makes an iOS
+  // build fail loudly rather than run with all three of auth, purchases and ad
+  // revenue silently dead.
   static const Map<String, dynamic> remoteConfigDefaults = {
     'ads.enabled': true,
     'ads.testMode': false,
@@ -55,13 +49,14 @@ class AppConfig {
     'ads.banner.adUnitId.ios': 'ca-app-pub-3940256099942544/2934735716',
     'ads.interstitial.enabled': false,
     'ads.interstitial.frequency': 3,
+    'ads.interstitial.interval_seconds': 90,
     'ads.interstitial.adUnitId.android': 'ca-app-pub-8785125235072301/9453640886',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',
     'config.version': 1,
     'revenuecat.apiKey.android': 'goog_FqFNSCJonpAkvKrGrGwaFLKYcZL',
     'revenuecat.apiKey.ios': 'appl_placeholder_api_key_ios',
   };
-  
+
   // AdMob test unit IDs
   static const String testBannerAdUnitAndroid = 'ca-app-pub-3940256099942544/6300978111';
   static const String testBannerAdUnitIOS = 'ca-app-pub-3940256099942544/2934735716';

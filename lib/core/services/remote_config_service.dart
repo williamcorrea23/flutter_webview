@@ -83,6 +83,10 @@ class RemoteConfigService extends ChangeNotifier {
   // Interstitial Ads
   bool get interstitialAdsEnabled => _getBool('ads.interstitial.enabled');
   int get interstitialFrequency => _getInt('ads.interstitial.frequency');
+  int get interstitialIntervalSeconds {
+    final value = _getInt('ads.interstitial.interval_seconds');
+    return value > 0 ? value : 90;
+  }
   String get interstitialAdUnitAndroid =>
       _getString('ads.interstitial.adUnitId.android');
   String get interstitialAdUnitIOS =>

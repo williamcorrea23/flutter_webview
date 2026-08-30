@@ -1,120 +1,110 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Master ABAP</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>usman_sanda_palace</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	
-	<!-- URL schemes queried by url_launcher -->
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>tel</string>
-		<string>mailto</string>
-		<string>sms</string>
-		<string>geo</string>
-		<string>whatsapp</string>
-	</array>
-	<!-- Privacy Permissions -->
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to let you upload photos to the website.</string>
-	
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access for audio recording features on the website.</string>
-	
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs location access to provide location-based features on the website.</string>
-	
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs photo library access to let you select and upload photos.</string>
-	
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app saves images to your photo library when you download them from the website.</string>
-	
-	<!-- App Tracking Transparency -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>We use your device's advertising identifier to deliver personalized ads that are more relevant to you.</string>
-	
-	<!-- AdMob App ID -->
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
-	
-	<!-- Firebase -->
-	<key>FirebaseAutomaticScreenReportingEnabled</key>
-	<false/>
-	
-	<!-- App Transport Security -->
-	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleDisplayName</key>
+		<string>Master ABAP</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>master_abap</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>CADisableMinimumFrameDurationOnPhone</key>
+		<true/>
+		<key>UIApplicationSupportsIndirectInputEvents</key>
+		<true/>
+		<!-- URL schemes queried by url_launcher -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>mailto</string>
+			<string>sms</string>
+			<string>geo</string>
+			<string>whatsapp</string>
+		</array>
+		<!-- Privacy Permissions -->
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs camera access to let you upload photos to the website.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>This app needs microphone access for audio recording features on the website.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs location access to provide location-based features on the website.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs photo library access to let you select and upload photos.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>This app saves images to your photo library when you download them from the website.</string>
+		<!-- App Tracking Transparency -->
+		<key>NSUserTrackingUsageDescription</key>
+		<string>We use your device's advertising identifier to deliver personalized ads that are more relevant to you.</string>
+		<!-- AdMob App ID -->
+		<key>GADApplicationIdentifier</key>
+		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<!-- Firebase -->
+		<key>FirebaseAutomaticScreenReportingEnabled</key>
 		<false/>
-		<key>NSExceptionDomains</key>
+		<!-- App Transport Security -->
+		<key>NSAppTransportSecurity</key>
 		<dict>
-			<key>supabapnew.vercel.app</key>
+			<key>NSAllowsArbitraryLoads</key>
+			<false/>
+			<key>NSExceptionDomains</key>
 			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<false/>
-				<key>NSExceptionMinimumTLSVersion</key>
-				<string>TLSv1.2</string>
-				<key>NSIncludesSubdomains</key>
-				<true/>
+				<key>supabapnew.vercel.app</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<false/>
+					<key>NSExceptionMinimumTLSVersion</key>
+					<string>TLSv1.2</string>
+					<key>NSIncludesSubdomains</key>
+					<true/>
+				</dict>
 			</dict>
 		</dict>
+		<!-- Status Bar Style -->
+		<key>UIStatusBarStyle</key>
+		<string>UIStatusBarStyleDefault</string>
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+		<!-- Prevent Backup -->
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
+		<!-- Required for iOS 14+ WebView -->
+		<key>WKAppBoundDomains</key>
+		<array>
+			<string>supabapnew.vercel.app</string>
+		</array>
+		<key>UIStatusBarHidden</key>
+		<false/>
 	</dict>
-	
-	<!-- Status Bar Style -->
-	<key>UIStatusBarStyle</key>
-	<string>UIStatusBarStyleDefault</string>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-	
-	<!-- Prevent Backup -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	
-	<!-- Required for iOS 14+ WebView -->
-	<key>WKAppBoundDomains</key>
-	<array>
-		<string>supabapnew.vercel.app</string>
-	</array>
-</dict>
 </plist>

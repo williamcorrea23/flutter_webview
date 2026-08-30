@@ -57,12 +57,25 @@ class DefaultFirebaseOptions {
     storageBucket: 'abap-aed31.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: '1:YOUR_PROJECT_NUMBER:ios:YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-    iosBundleId: 'com.usmansandapalace.app',
-  );
+  /// iOS is not configured, and must fail loudly rather than half-run.
+  ///
+  /// This used to return a FirebaseOptions full of `YOUR_IOS_API_KEY`
+  /// placeholders under a bundle id inherited from the upstream template this
+  /// repo was forked from, which does not exist in project abap-aed31 (the one
+  /// the Android options above use). `Firebase.initializeApp` would reject them,
+  /// main.dart would catch and carry on, and the app would come up with
+  /// sign-in, Remote Config, purchases (the iOS RevenueCat key is a
+  /// placeholder too) and real ad revenue all quietly dead — with no symptom
+  /// beyond "nothing works".
+  ///
+  /// Throwing matches how every other unconfigured platform above behaves, and
+  /// turns "shipped iOS by accident" into a crash on the first line instead of
+  /// a support thread. Restore real values here, and set
+  /// `revenuecat.apiKey.ios` plus the two `ads.*.adUnitId.ios` Remote Config
+  /// defaults, when `flutter create --platforms=ios .` regenerates the iOS
+  /// project — ios/ currently has no Runner.xcodeproj at all.
+  static FirebaseOptions get ios => throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for iOS - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
 }

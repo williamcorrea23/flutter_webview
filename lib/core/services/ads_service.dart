@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:logger/logger.dart';
 
 import '../config/app_config.dart';
-import 'remote_config_service.dart';
 import 'consent_service.dart';
+import 'remote_config_service.dart';
 
 final adsServiceProvider = ChangeNotifierProvider<AdsService>((ref) {
   final service = AdsService(
@@ -96,7 +98,7 @@ class AdsService extends ChangeNotifier {
       await _bannerAd!.load();
     } catch (e) {
       _logger.e('Error loading banner ad: $e');
-      _bannerAd?.dispose();
+      unawaited(_bannerAd?.dispose() ?? Future<void>.value());
       _bannerAd = null;
       notifyListeners();
     }
@@ -200,13 +202,34 @@ class AdsService extends ChangeNotifier {
     // Check frequency
     if (_pageNavigationCount % frequency != 0) return false;
 
-    // Don't show too frequently (minimum 60 seconds between interstitials)
+    // Don't show too frequently (configurable, default 90 seconds between interstitials)
     if (_lastInterstitialShown != null) {
       final timeSinceLastAd =
           DateTime.now().difference(_lastInterstitialShown!);
-      if (timeSinceLastAd.inSeconds < 60) return false;
+      final minInterval = _remoteConfig.interstitialIntervalSeconds;
+      if (timeSinceLastAd.inSeconds < minInterval) return false;
     }
 
+    return true;
+  }
+
+  /// Displays an interstitial after a user-initiated action (e.g. AI prompt response),
+  /// strictly enforcing the minimum cooldown interval to comply with Google Play Better Ads Standards.
+  Future<bool> showInterstitialOnAction({bool force = false}) async {
+    if (!_remoteConfig.interstitialAdsEnabled ||
+        !_consentService.canRequestAds ||
+        _interstitialAd == null) {
+      return false;
+    }
+
+    if (!force && _lastInterstitialShown != null) {
+      final timeSinceLastAd =
+          DateTime.now().difference(_lastInterstitialShown!);
+      final minInterval = _remoteConfig.interstitialIntervalSeconds;
+      if (timeSinceLastAd.inSeconds < minInterval) return false;
+    }
+
+    await showInterstitial();
     return true;
   }
 
@@ -225,11 +248,12 @@ class AdsService extends ChangeNotifier {
   Future<void> refreshAds() async {
     _logger.i('Refreshing ads based on new config');
 
-    // Dispose existing ads
-    _bannerAd?.dispose();
+    // Dispose existing ads. Not awaited: disposal is fire-and-forget on the
+    // platform side and the reload below must not wait on it.
+    unawaited(_bannerAd?.dispose() ?? Future<void>.value());
     _bannerAd = null;
     notifyListeners();
-    _interstitialAd?.dispose();
+    unawaited(_interstitialAd?.dispose() ?? Future<void>.value());
     _interstitialAd = null;
 
     // Reload if ads are enabled

@@ -2,10 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AppTheme {
-  // Brand Colors
-  static const Color primaryColor = Color(0xFF1a365d);
-  static const Color secondaryColor = Color(0xFF2d5a87);
-  static const Color accentColor = Color(0xFF3b82f6);
+  // Brand Colors — from SupABAP.aia, Screen1.scm. The original project sets
+  // PrimaryColor, PrimaryColorDark, AccentColor, StatusBarColor and
+  // NavigationBarColor all to &HFF525CC7, so there is one brand colour rather
+  // than a primary/secondary pair; the previous 0xFF1a365d/0xFF2d5a87/0xFF3b82f6
+  // values were template defaults that never matched the app.
+  static const Color primaryColor = Color(0xFF525CC7);
+  static const Color secondaryColor = Color(0xFF525CC7);
+  static const Color accentColor = Color(0xFF525CC7);
+
+  // Lightened brand tint. NOT a second brand colour — it exists only for text
+  // and indicators drawn ON the dark surfaces (#0f172a), where the brand colour
+  // itself measures ~3.3:1 contrast, under the 4.5:1 minimum for text.
+  static const Color accentOnDark = Color(0xFF8A93E4);
   
   // Light Theme Colors
   static const Color lightBackground = Color(0xFFffffff);
@@ -134,7 +143,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: accentColor,
+          foregroundColor: accentOnDark,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -142,7 +151,7 @@ class AppTheme {
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: accentColor,
+        color: accentOnDark,
         linearTrackColor: darkSurface,
       ),
       dividerTheme: const DividerThemeData(
