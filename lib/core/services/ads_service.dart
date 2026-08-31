@@ -11,12 +11,13 @@ import 'consent_service.dart';
 import 'remote_config_service.dart';
 
 final adsServiceProvider = ChangeNotifierProvider<AdsService>((ref) {
-  final service = AdsService(
+  // ChangeNotifierProvider owns the notifier and calls dispose itself. Adding
+  // ref.onDispose(service.dispose) here disposes it twice when the provider
+  // container is torn down (and also disposes each native ad twice).
+  return AdsService(
     ref.read(remoteConfigServiceProvider),
     ref.read(consentServiceProvider),
   );
-  ref.onDispose(service.dispose);
-  return service;
 });
 
 class AdsService extends ChangeNotifier {
