@@ -20,7 +20,9 @@ import '../../../../core/services/remote_config_service.dart';
 import '../../../../shared/constants/app_constants.dart';
 import '../../../about/presentation/pages/about_page.dart';
 import '../../domain/navigation_policy.dart';
+import '../interstitial_request_coordinator.dart';
 import '../widgets/banner_ad_widget.dart';
+import '../widgets/interstitial_consent_dialog.dart';
 import '../widgets/offline_page_widget.dart';
 import '../widgets/progress_indicator_widget.dart';
 
@@ -145,6 +147,9 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   bool _isOffline = false;
   double _loadingProgress = 0.0;
   bool _canGoBack = false;
+
+  final InterstitialRequestCoordinator _interstitialRequests =
+      InterstitialRequestCoordinator();
 
   /// Last URL counted towards the interstitial schedule, so the two callbacks
   /// that report navigation cannot both count the same one.
@@ -279,9 +284,18 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     controller.addJavaScriptHandler(
       handlerName: 'triggerInterstitialOnAction',
       callback: (args) async {
-        if (await _admit(args) == null) return false;
-        if (ref.read(isPremiumProvider).value ?? false) return false;
-        return ref.read(adsServiceProvider).showInterstitialOnAction();
+        if (await _admit(args) == null || !mounted) return false;
+        final adsService = ref.read(adsServiceProvider);
+
+        return _interstitialRequests.run(
+          canShow: () {
+            if (!mounted) return false;
+            if (ref.read(isPremiumProvider).value ?? false) return false;
+            return adsService.canShowInterstitialOnAction();
+          },
+          requestConsent: _confirmInterstitialAd,
+          showAd: adsService.showInterstitialOnAction,
+        );
       },
     );
 
@@ -586,6 +600,11 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
           ),
         ) ??
         false;
+  }
+
+  Future<bool> _confirmInterstitialAd() async {
+    if (!mounted) return false;
+    return InterstitialConsentDialog.show(context);
   }
 
   Future<NavigationActionPolicy> _onNavigation(

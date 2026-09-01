@@ -129,15 +129,16 @@ class AdsService extends ChangeNotifier {
               },
               onAdDismissedFullScreenContent: (ad) {
                 _logger.i('Interstitial ad dismissed');
-                ad.dispose();
+                unawaited(ad.dispose());
                 _interstitialAd = null;
                 // Pre-load next interstitial
-                _loadInterstitialAd();
+                unawaited(_loadInterstitialAd());
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
                 _logger.w('Interstitial ad failed to show: $error');
-                ad.dispose();
+                unawaited(ad.dispose());
                 _interstitialAd = null;
+                unawaited(_loadInterstitialAd());
               },
             );
           },
@@ -186,7 +187,7 @@ class AdsService extends ChangeNotifier {
 
     // Show interstitial based on frequency
     if (_shouldShowInterstitial()) {
-      showInterstitial();
+      unawaited(showInterstitial());
     }
   }
 
@@ -214,9 +215,12 @@ class AdsService extends ChangeNotifier {
     return true;
   }
 
-  /// Displays an interstitial after a user-initiated action (e.g. AI prompt response),
-  /// strictly enforcing the minimum cooldown interval to comply with Google Play Better Ads Standards.
-  Future<bool> showInterstitialOnAction({bool force = false}) async {
+  /// Whether an action-triggered interstitial can be shown right now.
+  ///
+  /// Callers use this before asking for explicit user consent. The show method
+  /// repeats the check because the loaded ad or cooldown state may change while
+  /// a consent dialog is open.
+  bool canShowInterstitialOnAction({bool force = false}) {
     if (!_remoteConfig.interstitialAdsEnabled ||
         !_consentService.canRequestAds ||
         _interstitialAd == null) {
@@ -230,19 +234,34 @@ class AdsService extends ChangeNotifier {
       if (timeSinceLastAd.inSeconds < minInterval) return false;
     }
 
-    await showInterstitial();
     return true;
   }
 
-  Future<void> showInterstitial() async {
-    if (_interstitialAd == null) return;
+  /// Displays an interstitial after a user-initiated action (e.g. AI prompt
+  /// response), strictly enforcing the minimum cooldown interval.
+  Future<bool> showInterstitialOnAction({bool force = false}) async {
+    if (!canShowInterstitialOnAction(force: force)) return false;
+    return showInterstitial();
+  }
+
+  Future<bool> showInterstitial() async {
+    final ad = _interstitialAd;
+    if (ad == null) return false;
+
+    // Reserve this single-use ad before crossing an async boundary. A second
+    // bridge or navigation request must not be able to show the same instance.
+    _interstitialAd = null;
 
     try {
-      await _interstitialAd!.show();
+      await ad.show();
       _lastInterstitialShown = DateTime.now();
       _logger.i('Interstitial ad shown');
+      return true;
     } catch (e) {
       _logger.e('Error showing interstitial ad: $e');
+      unawaited(ad.dispose());
+      unawaited(_loadInterstitialAd());
+      return false;
     }
   }
 
