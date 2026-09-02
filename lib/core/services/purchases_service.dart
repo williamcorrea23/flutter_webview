@@ -115,14 +115,10 @@ class PurchasesService {
 
   /// Whether any of [activeEntitlementIds] grants Premium.
   ///
-  /// Falls back to "any active entitlement counts". That is not a loose guess:
-  /// the RevenueCat project defines exactly one entitlement (see
-  /// [premiumEntitlementIds]), so there is nothing else an active entitlement
-  /// could be. It exists so that renaming the entitlement in the dashboard
-  /// degrades to "still works, logs a warning" instead of silently denying
-  /// access to everyone who paid. If the log fires, add the new identifier to
-  /// [premiumEntitlementIds] — and revisit this fallback if a second,
-  /// non-premium entitlement is ever added to the project.
+  /// Fails closed: an entitlement from another app or add-on must never unlock
+  /// SupABAP. This matters once all seven apps share RevenueCat infrastructure.
+  /// New SupABAP entitlement ids must be added explicitly to
+  /// [premiumEntitlementIds] before they can grant access.
   @visibleForTesting
   static bool hasPremium(Iterable<String> activeEntitlementIds) {
     final active = activeEntitlementIds.toSet();
@@ -133,10 +129,10 @@ class PurchasesService {
     }
 
     _logger.w(
-      'Premium granted by an entitlement outside premiumEntitlementIds: '
-      '${active.toList()}. Add the real identifier to that list.',
+      'Ignoring active entitlements outside premiumEntitlementIds: '
+      '${active.toList()}. Add a verified SupABAP identifier explicitly.',
     );
-    return true;
+    return false;
   }
 
   Future<void> initialize() async {

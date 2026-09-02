@@ -155,10 +155,10 @@ void main() {
       );
     });
 
-    test('grants premium for an unlisted active entitlement', () {
-      // Deliberate: a wrong identifier must not silently deny access to
-      // someone who paid. Verifies the catch-all, which also logs a warning.
-      expect(PurchasesService.hasPremium(const ['some_other_id']), isTrue);
+    test('rejects an unlisted active entitlement', () {
+      // The seven-app suite may attach other products to the same RevenueCat
+      // project. Only SupABAP's explicit entitlement ids may unlock SupABAP.
+      expect(PurchasesService.hasPremium(const ['some_other_id']), isFalse);
     });
   });
 }
