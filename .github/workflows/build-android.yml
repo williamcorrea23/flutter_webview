@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: 'Generate a signed AAB after Play upload-key activation is verified'
+        description: 'Generate a signed AAB after the registered Play upload key is verified'
         type: boolean
         default: false
 

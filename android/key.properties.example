@@ -3,5 +3,5 @@
 # storeFile is relative to android/app/; forward slashes also work on Windows.
 storePassword=CHANGE_ME
 keyPassword=CHANGE_ME
-keyAlias=upload
+keyAlias=androidkey
 storeFile=../../upload-keystore.jks
