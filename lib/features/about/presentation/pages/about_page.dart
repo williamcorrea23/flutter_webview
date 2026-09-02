@@ -240,7 +240,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             // Footer
             Center(
               child: Text(
-                'Made with ❤️ for Master ABAP',
+                'Made with ❤️ for ${AppConstants.appName}',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),

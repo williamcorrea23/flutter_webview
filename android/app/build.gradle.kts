@@ -1,3 +1,5 @@
+import java.security.KeyStore
+import java.security.MessageDigest
 import java.util.Properties
 
 plugins {
@@ -20,7 +22,7 @@ plugins {
 //  2. android/key.properties, which is gitignored and is the local developer
 //     path.
 //
-// Neither present means no release key — see the buildTypes block below.
+// Release builds require the registered Play upload key. Debug builds do not.
 val envKeystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")
 val envKeystorePassword: String? = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 val envKeyAlias: String? = System.getenv("ANDROID_KEY_ALIAS")
@@ -29,11 +31,17 @@ val hasEnvSigning = !envKeystorePath.isNullOrBlank() &&
         !envKeystorePassword.isNullOrBlank() &&
         !envKeyAlias.isNullOrBlank() &&
         !envKeyPassword.isNullOrBlank()
+val hasAnyEnvSigning = listOf(envKeystorePath, envKeystorePassword, envKeyAlias, envKeyPassword)
+    .any { !it.isNullOrBlank() }
 
 val releaseKeystoreProperties = Properties()
 val releaseKeystoreFile = rootProject.file("key.properties")
 if (releaseKeystoreFile.exists()) {
     releaseKeystoreFile.inputStream().use { releaseKeystoreProperties.load(it) }
+}
+
+val playReleaseProperties = Properties().apply {
+    rootProject.file("play-release.properties").inputStream().use { load(it) }
 }
 
 android {
@@ -47,7 +55,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Must remain identical to the existing Master ABAP Play listing.
         applicationId = "co.supabap.android"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -59,20 +67,8 @@ android {
 
     buildTypes {
         release {
-            // The debug fallback is not laziness, it is what keeps the build
-            // producing a file at all. With NO signingConfig, AGP names the
-            // output app-release-UNSIGNED.apk, and flutter_tools then looks for
-            // app-release.apk, fails to find it and exits with "Gradle build
-            // failed to produce an .apk file". So on any machine or CI runner
-            // without android/key.properties — which is gitignored, so that is
-            // every fresh clone — `flutter build apk --release` failed outright
-            // rather than producing an unsigned build to test with.
-            //
-            // A debug-signed release APK must never be published. The GitHub
-            // Release step in .github/workflows/build-android.yml is gated on
-            // the signing secrets actually being present for exactly that
-            // reason; without them the workflow still uploads an artifact for
-            // internal testing, and publishes nothing.
+            // No debug-key fallback: verifyPlayRelease rejects missing or
+            // incompatible signing material before a release can be packaged.
             signingConfig = when {
                 hasEnvSigning -> signingConfigs.create("release") {
                     keyAlias = envKeyAlias
@@ -82,21 +78,63 @@ android {
                     storeFile = file(envKeystorePath!!)
                     storePassword = envKeystorePassword
                 }
-                releaseKeystoreFile.exists() -> signingConfigs.create("release") {
-                    keyAlias = releaseKeystoreProperties["keyAlias"] as String
-                    keyPassword = releaseKeystoreProperties["keyPassword"] as String
+                !hasAnyEnvSigning && releaseKeystoreFile.exists() -> signingConfigs.create("release") {
+                    keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+                    keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
                     // file() here is Project.file on the :app project, so this
                     // path is relative to android/app/ — which is why the
-                    // committed local key.properties says ../../android.keystore.
-                    storeFile = file(releaseKeystoreProperties["storeFile"] as String)
-                    storePassword = releaseKeystoreProperties["storePassword"] as String
+                    // local key.properties can use ../../upload-keystore.jks.
+                    storeFile = releaseKeystoreProperties.getProperty("storeFile")?.let { file(it) }
+                    storePassword = releaseKeystoreProperties.getProperty("storePassword")
                 }
-                else -> {
-                    logger.warn("No release signing material: signing with the DEBUG key. Do not distribute this build.")
-                    signingConfigs.getByName("debug")
-                }
+                else -> null
             }
         }
+    }
+}
+
+val verifyPlayRelease by tasks.registering {
+    group = "verification"
+    description = "Checks Master ABAP package, version and the registered Play upload certificate."
+    doLast {
+        check(android.defaultConfig.applicationId == playReleaseProperties.getProperty("applicationId")) {
+            "Release package must match the existing Master ABAP Play listing."
+        }
+        val minimumVersionCode = playReleaseProperties.getProperty("minimumVersionCode").toInt()
+        check((android.defaultConfig.versionCode ?: 0) >= minimumVersionCode) {
+            "Use versionCode >= $minimumVersionCode according to the recorded Play baseline. Recheck the Console before uploading."
+        }
+        check(!hasAnyEnvSigning || hasEnvSigning) {
+            "Incomplete ANDROID_KEYSTORE_* / ANDROID_KEY_* environment. All four signing values are required."
+        }
+        val signing = android.buildTypes.getByName("release").signingConfig
+            ?: throw GradleException("Play release signing is missing. Configure the registered upload key in android/key.properties or the environment.")
+        val keystoreFile = signing.storeFile
+        val storePassword = signing.storePassword
+        val alias = signing.keyAlias
+        val keyPassword = signing.keyPassword
+        check(keystoreFile?.isFile == true && !storePassword.isNullOrBlank() &&
+                !alias.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
+            "Play release requires an existing keystore, storePassword, keyAlias and keyPassword."
+        }
+        val keystore = KeyStore.getInstance(keystoreFile!!, storePassword.toCharArray())
+        check(keystore.isKeyEntry(alias)) { "The configured alias must contain a private upload key, not just a certificate." }
+        val certificate = keystore.getCertificate(alias)
+            ?: throw GradleException("No upload certificate found for the configured alias.")
+        val fingerprint = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+            .joinToString(":") { "%02X".format(it.toInt() and 0xff) }
+        val expected = playReleaseProperties.getProperty("uploadCertificateSha256")
+        check(fingerprint == expected) {
+            "Wrong Play upload key. Expected SHA-256 $expected; found $fingerprint. Configure the original upload keystore. Do not upload this build or replace the expected fingerprint with an unregistered key."
+        }
+        check(keystore.getKey(alias, keyPassword.toCharArray()) != null) { "Upload private key could not be loaded." }
+        logger.lifecycle("Play release verified: ${android.defaultConfig.applicationId}, versionCode ${android.defaultConfig.versionCode}, upload SHA-256 $fingerprint")
+    }
+}
+
+tasks.configureEach {
+    if (name == "preReleaseBuild" || name == "validateSigningRelease") {
+        dependsOn(verifyPlayRelease)
     }
 }
 

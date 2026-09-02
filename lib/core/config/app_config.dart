@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import '../../shared/constants/app_constants.dart';
+
 class AppConfig {
-  static const String appName = 'Master ABAP';
+  static const String appName = AppConstants.appName;
   static const String primaryUrl = 'https://supabapnew.vercel.app/';
 
   // Environment

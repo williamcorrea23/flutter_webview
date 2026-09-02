@@ -14,19 +14,27 @@
       },
       "oauth_client": [
         {
-          "client_id": "838743198796-hl5td1qsvhnp81latap6riu633a5lbij.apps.googleusercontent.com",
+          "client_id": "838743198796-47qelpjq33adlpme9n4f9sd144dld2re.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "co.supabap.android",
-            "certificate_hash": "1248db48f0bf125fffd467853c06b5c9be3ed09b"
+            "certificate_hash": "4caae942496fc19e6a7c0c8c3b9d9eecb7d3a1ae"
           }
         },
         {
-          "client_id": "838743198796-se9atabes32vedipvtlgru1cbmdioco0.apps.googleusercontent.com",
+          "client_id": "838743198796-is1ar5neicvrt09jlr2gtn7ehtnc9141.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "co.supabap.android",
-            "certificate_hash": "d3482f2424b9fb421402430e84593550f2317dc8"
+            "certificate_hash": "4795467dc71ff5adfa86a268c6d0c20d4284e1a4"
+          }
+        },
+        {
+          "client_id": "838743198796-ul6r0f46os1fo7r441fgiq206d8plniq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.supabap.android",
+            "certificate_hash": "dc0a1850a87efbe45e45f6eb4fdf615c9717d06a"
           }
         },
         {

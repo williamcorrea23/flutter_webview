@@ -1,4 +1,7 @@
+# Use the EXISTING Play upload keystore, not a newly generated key.
+# Expected SHA-256 is pinned in android/play-release.properties.
+# storeFile is relative to android/app/; forward slashes also work on Windows.
 storePassword=CHANGE_ME
 keyPassword=CHANGE_ME
 keyAlias=upload
-storeFile=upload-keystore.jks
+storeFile=../../upload-keystore.jks

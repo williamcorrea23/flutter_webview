@@ -1,16 +1,15 @@
 class AppConstants {
   // App Info
-  // appName is the launcher/task-switcher label (SupABAP.aia AppName).
-  // appTitle is what the action bar shows (SupABAP.aia Screen1 Title) — the two
-  // are deliberately different in the original project.
+  // Keep the launcher, task switcher, native action bar, and commercial suite
+  // aligned on one product identity.
   //
   // There is deliberately no appVersion constant. It used to say '1.0.0' while
   // pubspec.yaml said 1.4.7+3; the About page reads the real value from
   // package_info_plus, and a second, hand-maintained copy is only a way to
   // start disagreeing with it again.
   static const String appName = 'Master ABAP';
-  static const String appTitle = 'Learn SAP Module with AI';
-  static const String aboutDescription = 'E-Learn ERP modules with AI';
+  static const String appTitle = appName;
+  static const String aboutDescription = 'ABAP microlearning with AI';
   static const String legalNotice =
       '© Master ABAP. All Rights Reserved. Developed by Compilemama.';
 

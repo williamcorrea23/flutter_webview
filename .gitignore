@@ -42,6 +42,11 @@ android/*.jks
 android/*.keystore
 /android.keystore
 /android.jks
+# Upload keys may be outside android/; never track signing material.
+*.jks
+*.keystore
+*.p12
+*.pfx
 
 # Symbolication related
 app.*.symbols
