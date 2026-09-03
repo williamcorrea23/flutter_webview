@@ -11,6 +11,12 @@
 > Build and bundletool validation passed; upload certificate verified. Binary
 > inspection confirms both diagnostic buttons and the internal-build notice are
 > absent while the neutral interstitial notice remains. Static analysis passed.
+>
+> Play upload completed 2026-09-03: version 22 accepted and saved as internal
+> release draft 4. Review reports ready to launch, with zero compatibility losses
+> versus v21. Not published; awaiting owner choice to release to internal testers.
+> Review URL: https://play.google.com/console/u/0/developers/7596077406209875742/app/4975246817148948313/tracks/4701589961207993959/releases/4/review
+> Version code 22 is now consumed. Future bundles must use 23 or higher.
 
 ## Confirmed findings
 
