@@ -25,12 +25,13 @@ void main() {
     expect(find.text('Optional ad'), findsOneWidget);
     expect(
       find.text(
-        'Would you like to watch a full-screen ad to support the app?',
+        'A full-screen advertisement may appear between practice sessions. '
+        'You can continue without it.',
       ),
       findsOneWidget,
     );
     expect(find.text('Not now'), findsOneWidget);
-    expect(find.text('Watch ad'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
 
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
@@ -56,7 +57,7 @@ void main() {
 
     await tester.tap(find.text('Open dialog'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Watch ad'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(await result, isTrue);

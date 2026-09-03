@@ -5,6 +5,33 @@ import 'package:logger/logger.dart';
 
 import '../config/app_config.dart';
 
+// Deployed Firebase parameters predate the Flutter shell. Prefer an explicit
+// remote value (new name, then legacy alias) over a bundled dotted default.
+const adRemoteAliases = <String, List<String>>{
+  'ads.enabled': ['ads_enabled', 'show_ads'],
+  'ads.testMode': ['ads_test_mode'],
+  'ads.banner.enabled': ['ads_banner_enabled'],
+  'ads.banner.placement': ['ads_banner_placement'],
+  'ads.banner.adUnitId.android': [
+    'ads_banner_ad_unit_android',
+    'banner_ad_id',
+    'ad_unit_banner'
+  ],
+  'ads.interstitial.enabled': ['ads_interstitial_enabled'],
+  'ads.interstitial.adUnitId.android': [
+    'ads_interstitial_ad_unit_android',
+    'interstitial_ad_id',
+    'ad_unit_interstitial'
+  ],
+};
+
+String resolveRemoteAdKey(String key, bool Function(String) isRemote) {
+  for (final candidate in [key, ...?adRemoteAliases[key]]) {
+    if (isRemote(candidate)) return candidate;
+  }
+  return key;
+}
+
 final remoteConfigServiceProvider =
     ChangeNotifierProvider<RemoteConfigService>((ref) {
   return RemoteConfigService();
@@ -87,6 +114,7 @@ class RemoteConfigService extends ChangeNotifier {
     final value = _getInt('ads.interstitial.interval_seconds');
     return value > 0 ? value : 90;
   }
+
   String get interstitialAdUnitAndroid =>
       _getString('ads.interstitial.adUnitId.android');
   String get interstitialAdUnitIOS =>
@@ -100,9 +128,18 @@ class RemoteConfigService extends ChangeNotifier {
   String get revenueCatApiKeyIOS => _getString('revenuecat.apiKey.ios');
 
   // Helper methods
+  RemoteConfigValue _getValue(String key) {
+    final resolved = resolveRemoteAdKey(
+        key,
+        (candidate) =>
+            _remoteConfig.getValue(candidate).source ==
+            ValueSource.valueRemote);
+    return _remoteConfig.getValue(resolved);
+  }
+
   bool _getBool(String key) {
     try {
-      return _remoteConfig.getBool(key);
+      return _getValue(key).asBool();
     } catch (e) {
       _logger.w('Failed to get bool for key $key: $e');
       return AppConfig.remoteConfigDefaults[key] as bool? ?? false;
@@ -111,7 +148,7 @@ class RemoteConfigService extends ChangeNotifier {
 
   String _getString(String key) {
     try {
-      return _remoteConfig.getString(key);
+      return _getValue(key).asString();
     } catch (e) {
       _logger.w('Failed to get string for key $key: $e');
       return AppConfig.remoteConfigDefaults[key] as String? ?? '';
@@ -120,7 +157,7 @@ class RemoteConfigService extends ChangeNotifier {
 
   int _getInt(String key) {
     try {
-      return _remoteConfig.getInt(key);
+      return _getValue(key).asInt();
     } catch (e) {
       _logger.w('Failed to get int for key $key: $e');
       return AppConfig.remoteConfigDefaults[key] as int? ?? 0;

@@ -115,9 +115,9 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Legal Notice
             Card(
               child: Padding(
@@ -140,22 +140,24 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Links Section
             Card(
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.privacy_tip, color: colorScheme.primary),
+                    leading:
+                        Icon(Icons.privacy_tip, color: colorScheme.primary),
                     title: const Text('Privacy Policy'),
                     trailing: const Icon(Icons.open_in_new),
                     onTap: () => _launchUrl(AppConstants.privacyPolicyUrl),
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: Icon(Icons.description, color: colorScheme.primary),
+                    leading:
+                        Icon(Icons.description, color: colorScheme.primary),
                     title: const Text('Terms of Service'),
                     trailing: const Icon(Icons.open_in_new),
                     onTap: () => _launchUrl(AppConstants.termsOfServiceUrl),
@@ -170,9 +172,9 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Privacy Controls
             Card(
               child: Column(
@@ -207,15 +209,20 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
-            // Diagnostics. Deliberately NOT gated on AppConfig.isDevelopment:
-            // in a release build that is false, so the one panel that explains
-            // why ads are missing (consent state, canRequestAds, whether a
-            // banner actually loaded, Premium) was invisible exactly when it
-            // was needed. Collapsed by default, so it costs a tap to open.
-            ...[
+
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                    'Master ABAP is supported by advertising and subscriptions. '
+                    'Advertisements do not unlock rewards or Premium access.'),
+              ),
+            ),
+            // Explicit diagnostic builds only; Play tracks are not detectable
+            // from kReleaseMode. Never promote a diagnostic AAB to production.
+            if (AppConfig.diagnosticsEnabled) ...[
               Card(
                 child: ExpansionTile(
                   leading: Icon(Icons.bug_report, color: colorScheme.primary),
@@ -234,9 +241,9 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ),
               ),
             ],
-            
+
             const SizedBox(height: 32),
-            
+
             // Footer
             Center(
               child: Text(
@@ -251,27 +258,38 @@ class _AboutPageState extends ConsumerState<AboutPage> {
       ),
     );
   }
-  
+
   Widget _buildDebugInfo() {
-    final remoteConfig = ref.read(remoteConfigServiceProvider);
-    final adsService = ref.read(adsServiceProvider);
+    final adsService = ref.watch(adsServiceProvider);
     final consentService = ref.read(consentServiceProvider);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Environment: ${AppConfig.isDevelopment ? 'Development' : 'Production'}'),
+        Text(
+            'Environment: ${AppConfig.isDevelopment ? 'Development' : 'Production'}'),
         Text('Package: ${_packageInfo?.packageName ?? 'Unknown'}'),
         Text('Build: ${_packageInfo?.buildNumber ?? 'Unknown'}'),
+        const Text('Internal diagnostic build — do not promote to production.'),
         const SizedBox(height: 8),
-        const Text('Remote Config:', style: TextStyle(fontWeight: FontWeight.bold)),
-        ...remoteConfig.getAllConfig().entries.map(
-          (entry) => Text('${entry.key}: ${entry.value}'),
-        ),
-        const SizedBox(height: 8),
-        const Text('Ads Service:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text('Ads Service:',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         ...adsService.getDebugInfo().entries.map(
-          (entry) => Text('${entry.key}: ${entry.value}'),
+              (entry) => SelectableText('${entry.key}: ${entry.value}'),
+            ),
+        const Text(
+            'Test ads do not generate revenue. Do not click live ads during testing.'),
+        TextButton(
+          onPressed: adsService.bannerDiagnostics.state == 'loading'
+              ? null
+              : () => adsService.retryBanner(),
+          child: const Text('Retry configured banner'),
+        ),
+        TextButton(
+          onPressed: adsService.bannerDiagnostics.state == 'loading'
+              ? null
+              : () => adsService.retryBanner(useGoogleTestAd: true),
+          child: const Text('Compare with Google test banner'),
         ),
         const SizedBox(height: 8),
         const Text('Consent:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -284,7 +302,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
         const Text('Premium:', style: TextStyle(fontWeight: FontWeight.bold)),
         Text(switch (ref.watch(isPremiumProvider)) {
           AsyncData(:final value) => 'Active: $value  (ads hidden: $value)',
-          AsyncError(:final error) => 'Lookup failed: $error',
+          AsyncError() => 'Lookup failed',
           _ => 'Checking… (ads shown until this resolves)',
         }),
       ],

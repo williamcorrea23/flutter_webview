@@ -16,7 +16,8 @@ class InterstitialConsentDialog extends StatelessWidget {
     return AlertDialog(
       title: const Text('Optional ad'),
       content: const Text(
-        'Would you like to watch a full-screen ad to support the app?',
+        'A full-screen advertisement may appear between practice sessions. '
+        'You can continue without it.',
       ),
       actions: [
         TextButton(
@@ -25,7 +26,7 @@ class InterstitialConsentDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Watch ad'),
+          child: const Text('Continue'),
         ),
       ],
     );

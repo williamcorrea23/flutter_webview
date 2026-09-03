@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:logger/logger.dart';
 
 import '../config/app_config.dart';
+import 'ad_load_diagnostics.dart';
 import 'consent_service.dart';
 import 'remote_config_service.dart';
 
@@ -27,6 +28,15 @@ class AdsService extends ChangeNotifier {
   final ConsentService _consentService;
 
   BannerAd? _bannerAd;
+  BannerAd? _pendingBannerAd;
+  Timer? _bannerTimeout;
+  int _bannerGeneration = 0;
+  int _interstitialGeneration = 0;
+  bool _disposed = false;
+  bool _sdkReady = false;
+  bool _diagnosticTestBanner = false;
+  final bannerDiagnostics = AdLoadDiagnostics();
+  final interstitialDiagnostics = AdLoadDiagnostics();
   InterstitialAd? _interstitialAd;
 
   bool _isInitialized = false;
@@ -49,42 +59,89 @@ class AdsService extends ChangeNotifier {
 
       // Only initialize ads if consent allows and ads are enabled
       if (_consentService.canRequestAds && _remoteConfig.adsEnabled) {
-        await MobileAds.instance.initialize();
-        await _loadBannerAd();
-        await _loadInterstitialAd();
+        await _ensureSdkReady();
       }
+      await _loadBannerAd();
+      await _loadInterstitialAd();
 
       _isInitialized = true;
       _logger.i(
           'Ads service initialized. Ads enabled: ${_remoteConfig.adsEnabled}');
     } catch (e) {
-      _logger.e('Failed to initialize ads service: $e');
+      if (_disposed) return;
+      bannerDiagnostics.failed(
+          -1, 'app', 'Ads initialization failed (${e.runtimeType})', null);
+      interstitialDiagnostics.failed(
+          -1, 'app', 'Ads initialization failed (${e.runtimeType})', null);
+      notifyListeners();
       _isInitialized = true; // Mark as initialized even on error
     }
   }
 
   Future<void> _loadBannerAd() async {
-    if (!_remoteConfig.bannerAdsEnabled || !_consentService.canRequestAds) {
+    if (_disposed) return;
+    if (!_remoteConfig.adsEnabled ||
+        !_remoteConfig.bannerAdsEnabled ||
+        !_consentService.canRequestAds) {
+      bannerDiagnostics.state =
+          !_remoteConfig.adsEnabled || !_remoteConfig.bannerAdsEnabled
+              ? 'disabled_by_config'
+              : 'consent_blocked';
+      notifyListeners();
       return;
     }
 
+    final generation = ++_bannerGeneration;
     try {
       final adUnitId = _getBannerAdUnitId();
-      if (adUnitId.isEmpty) return;
+      if (adUnitId.isEmpty) {
+        bannerDiagnostics.state = 'missing_ad_unit';
+        notifyListeners();
+        return;
+      }
+      bannerDiagnostics.begin();
+      notifyListeners();
+      _bannerTimeout?.cancel();
+      _bannerTimeout = Timer(const Duration(seconds: 30), () {
+        if (_disposed ||
+            generation != _bannerGeneration ||
+            _pendingBannerAd == null) {
+          return;
+        }
+        _bannerGeneration++;
+        unawaited(_pendingBannerAd!.dispose());
+        _pendingBannerAd = null;
+        bannerDiagnostics.failed(
+            -2,
+            'app',
+            'No SDK callback within 30 seconds. Retry or compare with a test banner.',
+            null);
+        notifyListeners();
+      });
 
-      _bannerAd = BannerAd(
+      final candidate = BannerAd(
         adUnitId: adUnitId,
         size: AdSize.banner,
         request: _buildAdRequest(),
         listener: BannerAdListener(
           onAdLoaded: (ad) {
+            if (_disposed || generation != _bannerGeneration) return;
+            _bannerTimeout?.cancel();
+            _bannerAd = ad as BannerAd;
+            _pendingBannerAd = null;
+            bannerDiagnostics.loaded(ad.responseInfo?.responseId);
             notifyListeners();
             _logger.i('Banner ad loaded successfully');
           },
           onAdFailedToLoad: (ad, error) {
-            _logger.w('Banner ad failed to load: $error');
+            if (_disposed || generation != _bannerGeneration) return;
+            _bannerTimeout?.cancel();
+            bannerDiagnostics.failed(error.code, error.domain, error.message,
+                error.responseInfo?.responseId);
+            _logger.w('Banner ad failed: ${bannerDiagnostics.snapshot()}');
             ad.dispose();
             _bannerAd = null;
+            _pendingBannerAd = null;
             notifyListeners();
           },
           onAdOpened: (ad) {
@@ -96,31 +153,55 @@ class AdsService extends ChangeNotifier {
         ),
       );
 
-      await _bannerAd!.load();
+      _pendingBannerAd = candidate;
+      await candidate.load();
     } catch (e) {
-      _logger.e('Error loading banner ad: $e');
-      unawaited(_bannerAd?.dispose() ?? Future<void>.value());
-      _bannerAd = null;
+      if (_disposed || generation != _bannerGeneration) return;
+      _bannerTimeout?.cancel();
+      bannerDiagnostics.failed(
+          -1, 'app', 'Banner load exception (${e.runtimeType})', null);
+      unawaited(_pendingBannerAd?.dispose() ?? Future<void>.value());
+      _pendingBannerAd = null;
       notifyListeners();
     }
   }
 
   Future<void> _loadInterstitialAd() async {
-    if (!_remoteConfig.interstitialAdsEnabled ||
+    if (_disposed) return;
+    if (!_remoteConfig.adsEnabled ||
+        !_remoteConfig.interstitialAdsEnabled ||
         !_consentService.canRequestAds) {
+      interstitialDiagnostics.state =
+          !_remoteConfig.adsEnabled || !_remoteConfig.interstitialAdsEnabled
+              ? 'disabled_by_config'
+              : 'consent_blocked';
+      notifyListeners();
       return;
     }
 
+    final generation = ++_interstitialGeneration;
     try {
       final adUnitId = _getInterstitialAdUnitId();
-      if (adUnitId.isEmpty) return;
+      if (adUnitId.isEmpty) {
+        interstitialDiagnostics.state = 'missing_ad_unit';
+        notifyListeners();
+        return;
+      }
+      interstitialDiagnostics.begin();
+      notifyListeners();
 
       await InterstitialAd.load(
         adUnitId: adUnitId,
         request: _buildAdRequest(),
         adLoadCallback: InterstitialAdLoadCallback(
           onAdLoaded: (ad) {
+            if (_disposed || generation != _interstitialGeneration) {
+              unawaited(ad.dispose());
+              return;
+            }
             _interstitialAd = ad;
+            interstitialDiagnostics.loaded(ad.responseInfo?.responseId);
+            notifyListeners();
             _logger.i('Interstitial ad loaded successfully');
 
             ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -130,26 +211,33 @@ class AdsService extends ChangeNotifier {
               onAdDismissedFullScreenContent: (ad) {
                 _logger.i('Interstitial ad dismissed');
                 unawaited(ad.dispose());
+                if (_disposed || generation != _interstitialGeneration) return;
                 _interstitialAd = null;
                 // Pre-load next interstitial
                 unawaited(_loadInterstitialAd());
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
-                _logger.w('Interstitial ad failed to show: $error');
                 unawaited(ad.dispose());
+                if (_disposed || generation != _interstitialGeneration) return;
                 _interstitialAd = null;
                 unawaited(_loadInterstitialAd());
               },
             );
           },
           onAdFailedToLoad: (error) {
-            _logger.w('Interstitial ad failed to load: $error');
+            if (_disposed || generation != _interstitialGeneration) return;
+            interstitialDiagnostics.failed(error.code, error.domain,
+                error.message, error.responseInfo?.responseId);
             _interstitialAd = null;
+            notifyListeners();
           },
         ),
       );
     } catch (e) {
-      _logger.e('Error loading interstitial ad: $e');
+      if (_disposed || generation != _interstitialGeneration) return;
+      interstitialDiagnostics.failed(
+          -1, 'app', 'Interstitial load exception (${e.runtimeType})', null);
+      notifyListeners();
     }
   }
 
@@ -159,7 +247,7 @@ class AdsService extends ChangeNotifier {
   }
 
   String _getBannerAdUnitId() {
-    if (_remoteConfig.adsTestMode || kDebugMode) {
+    if (_diagnosticTestBanner || _remoteConfig.adsTestMode || kDebugMode) {
       return Platform.isAndroid
           ? AppConfig.testBannerAdUnitAndroid
           : AppConfig.testBannerAdUnitIOS;
@@ -184,35 +272,6 @@ class AdsService extends ChangeNotifier {
 
   void onPageNavigation() {
     _pageNavigationCount++;
-
-    // Show interstitial based on frequency
-    if (_shouldShowInterstitial()) {
-      unawaited(showInterstitial());
-    }
-  }
-
-  bool _shouldShowInterstitial() {
-    if (!_remoteConfig.interstitialAdsEnabled ||
-        !_consentService.canRequestAds ||
-        _interstitialAd == null) {
-      return false;
-    }
-
-    final frequency = _remoteConfig.interstitialFrequency;
-    if (frequency <= 0) return false;
-
-    // Check frequency
-    if (_pageNavigationCount % frequency != 0) return false;
-
-    // Don't show too frequently (configurable, default 90 seconds between interstitials)
-    if (_lastInterstitialShown != null) {
-      final timeSinceLastAd =
-          DateTime.now().difference(_lastInterstitialShown!);
-      final minInterval = _remoteConfig.interstitialIntervalSeconds;
-      if (timeSinceLastAd.inSeconds < minInterval) return false;
-    }
-
-    return true;
   }
 
   /// Whether an action-triggered interstitial can be shown right now.
@@ -221,7 +280,9 @@ class AdsService extends ChangeNotifier {
   /// repeats the check because the loaded ad or cooldown state may change while
   /// a consent dialog is open.
   bool canShowInterstitialOnAction({bool force = false}) {
-    if (!_remoteConfig.interstitialAdsEnabled ||
+    if (_disposed ||
+        !_remoteConfig.adsEnabled ||
+        !_remoteConfig.interstitialAdsEnabled ||
         !_consentService.canRequestAds ||
         _interstitialAd == null) {
       return false;
@@ -245,6 +306,7 @@ class AdsService extends ChangeNotifier {
   }
 
   Future<bool> showInterstitial() async {
+    if (!canShowInterstitialOnAction()) return false;
     final ad = _interstitialAd;
     if (ad == null) return false;
 
@@ -265,11 +327,51 @@ class AdsService extends ChangeNotifier {
     }
   }
 
+  Future<void> _ensureSdkReady() async {
+    if (_sdkReady) return;
+    await MobileAds.instance.initialize();
+    _sdkReady = true;
+  }
+
+  /// Local to this process: never toggles test ads for production users.
+  Future<void> retryBanner({bool useGoogleTestAd = false}) async {
+    if (_disposed || (useGoogleTestAd && !AppConfig.diagnosticsEnabled)) return;
+    _diagnosticTestBanner = useGoogleTestAd;
+    final generation = ++_bannerGeneration;
+    _bannerTimeout?.cancel();
+    unawaited(_pendingBannerAd?.dispose() ?? Future<void>.value());
+    unawaited(_bannerAd?.dispose() ?? Future<void>.value());
+    _pendingBannerAd = null;
+    _bannerAd = null;
+    notifyListeners();
+    if (_remoteConfig.adsEnabled &&
+        _remoteConfig.bannerAdsEnabled &&
+        _consentService.canRequestAds) {
+      try {
+        await _ensureSdkReady();
+      } catch (e) {
+        if (_disposed) return;
+        bannerDiagnostics.failed(-1, 'app',
+            'Ads SDK initialization failed (${e.runtimeType})', null);
+        notifyListeners();
+        return;
+      }
+    }
+    if (_disposed || generation != _bannerGeneration) return;
+    await _loadBannerAd();
+  }
+
   Future<void> refreshAds() async {
+    if (_disposed) return;
     _logger.i('Refreshing ads based on new config');
 
     // Dispose existing ads. Not awaited: disposal is fire-and-forget on the
     // platform side and the reload below must not wait on it.
+    _bannerGeneration++;
+    _interstitialGeneration++;
+    _bannerTimeout?.cancel();
+    unawaited(_pendingBannerAd?.dispose() ?? Future<void>.value());
+    _pendingBannerAd = null;
     unawaited(_bannerAd?.dispose() ?? Future<void>.value());
     _bannerAd = null;
     notifyListeners();
@@ -278,13 +380,20 @@ class AdsService extends ChangeNotifier {
 
     // Reload if ads are enabled
     if (_remoteConfig.adsEnabled && _consentService.canRequestAds) {
-      await _loadBannerAd();
-      await _loadInterstitialAd();
+      await _ensureSdkReady();
     }
+    await _loadBannerAd();
+    await _loadInterstitialAd();
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    _bannerTimeout?.cancel();
+    _bannerGeneration++;
+    _interstitialGeneration++;
+    _pendingBannerAd?.dispose();
+    _pendingBannerAd = null;
     _bannerAd?.dispose();
     _interstitialAd?.dispose();
     _bannerAd = null;
@@ -300,9 +409,19 @@ class AdsService extends ChangeNotifier {
       'bannerAdsEnabled': _remoteConfig.bannerAdsEnabled,
       'interstitialAdsEnabled': _remoteConfig.interstitialAdsEnabled,
       'testMode': _remoteConfig.adsTestMode,
+      'effectiveBannerTestMode':
+          _diagnosticTestBanner || _remoteConfig.adsTestMode || kDebugMode,
+      'bannerUnit': _getBannerAdUnitId(),
+      'bannerPlacement': _remoteConfig.bannerPlacement,
       'canRequestAds': _consentService.canRequestAds,
       'bannerAdLoaded': _bannerAd != null,
       'interstitialAdLoaded': _interstitialAd != null,
+      ...bannerDiagnostics
+          .snapshot()
+          .map((key, value) => MapEntry('banner.$key', value)),
+      ...interstitialDiagnostics
+          .snapshot()
+          .map((key, value) => MapEntry('interstitial.$key', value)),
       'pageNavigationCount': _pageNavigationCount,
       'lastInterstitialShown': _lastInterstitialShown?.toIso8601String(),
     };

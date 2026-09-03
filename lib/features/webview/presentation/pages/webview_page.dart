@@ -534,11 +534,8 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   /// Deduplicated on the committed URL because BOTH `onLoadStop` and
   /// `onUpdateVisitedHistory` call this, and Android's
   /// `doUpdateVisitedHistory` — which is what backs the latter — fires on
-  /// ordinary full page loads too, not only on pushState. Counting a real load
-  /// twice while an SPA route change counts once desynchronises
-  /// `AdsService._pageNavigationCount % frequency`, which is the entire
-  /// interstitial schedule: at `frequency = 2` it would fire twice as often as
-  /// configured, and an odd counter can skip an even frequency indefinitely.
+  /// ordinary full page loads too, not only on pushState. Count a committed
+  /// transition once and only offer an ad after a practice session ends.
   void _notifyNavigation(WebUri? url) {
     // Consumed FIRST, before the dedupe can return early. A hardware Back
     // press commits history too, so without the flag the user could be handed
@@ -553,11 +550,28 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
 
     final key = url?.toString() ?? '';
     if (key == _lastCountedNavigation) return;
+    final previous = _lastCountedNavigation;
     _lastCountedNavigation = key;
 
     if (suppressed) return;
-    if (ref.read(isPremiumProvider).value ?? false) return;
-    ref.read(adsServiceProvider).onPageNavigation();
+    if (ref.read(isPremiumProvider).value != false) return;
+    final ads = ref.read(adsServiceProvider);
+    ads.onPageNavigation();
+    if (!isPracticeCompletionTransition(previous, key)) return;
+    // Do not interrupt the synchronous WebView history callback with a dialog.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_interstitialRequests.run(
+        canShow: () =>
+            mounted &&
+            _lastCountedNavigation == key &&
+            ref.read(isPremiumProvider).value == false &&
+            ads.canShowInterstitialOnAction(),
+        requestConsent: _confirmInterstitialAd,
+        showAd: ads.showInterstitialOnAction,
+      ));
+    });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   Future<bool> _handleBackPress() async {

@@ -9,6 +9,9 @@ class AppConfig {
   // Environment
   static bool get isDevelopment => kDebugMode;
   static bool get isProduction => kReleaseMode;
+  // Internal diagnostic builds only. A production build omits this define.
+  static const bool diagnosticsEnabled =
+      kDebugMode || bool.fromEnvironment('MASTER_ABAP_DIAGNOSTICS');
 
   // Allowed domains for WebView.
   //
@@ -49,10 +52,11 @@ class AppConfig {
     'ads.banner.placement': 'bottom',
     'ads.banner.adUnitId.android': 'ca-app-pub-8785125235072301/5430581499',
     'ads.banner.adUnitId.ios': 'ca-app-pub-3940256099942544/2934735716',
-    'ads.interstitial.enabled': false,
-    'ads.interstitial.frequency': 3,
+    'ads.interstitial.enabled': true,
+    'ads.interstitial.frequency': 0,
     'ads.interstitial.interval_seconds': 90,
-    'ads.interstitial.adUnitId.android': 'ca-app-pub-8785125235072301/9453640886',
+    'ads.interstitial.adUnitId.android':
+        'ca-app-pub-8785125235072301/9453640886',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',
     'config.version': 1,
     'revenuecat.apiKey.android': 'goog_FqFNSCJonpAkvKrGrGwaFLKYcZL',
@@ -60,8 +64,12 @@ class AppConfig {
   };
 
   // AdMob test unit IDs
-  static const String testBannerAdUnitAndroid = 'ca-app-pub-3940256099942544/6300978111';
-  static const String testBannerAdUnitIOS = 'ca-app-pub-3940256099942544/2934735716';
-  static const String testInterstitialAdUnitAndroid = 'ca-app-pub-3940256099942544/1033173712';
-  static const String testInterstitialAdUnitIOS = 'ca-app-pub-3940256099942544/4411468910';
+  static const String testBannerAdUnitAndroid =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String testBannerAdUnitIOS =
+      'ca-app-pub-3940256099942544/2934735716';
+  static const String testInterstitialAdUnitAndroid =
+      'ca-app-pub-3940256099942544/1033173712';
+  static const String testInterstitialAdUnitIOS =
+      'ca-app-pub-3940256099942544/4411468910';
 }
