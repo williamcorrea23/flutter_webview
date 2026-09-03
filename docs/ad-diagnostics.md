@@ -14,7 +14,9 @@
 >
 > Play upload completed 2026-09-03: version 22 accepted and saved as internal
 > release draft 4. Review reports ready to launch, with zero compatibility losses
-> versus v21. Not published; awaiting owner choice to release to internal testers.
+> versus v21. Owner then explicitly authorized internal publication. Published
+> 2026-09-03 at 02:53 (Play Console display): `22 (1.22.0) - Ads fixes`,
+> status `Disponível para testadores internos`. Production was not changed.
 > Review URL: https://play.google.com/console/u/0/developers/7596077406209875742/app/4975246817148948313/tracks/4701589961207993959/releases/4/review
 > Version code 22 is now consumed. Future bundles must use 23 or higher.
 
