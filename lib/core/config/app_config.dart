@@ -9,9 +9,8 @@ class AppConfig {
   // Environment
   static bool get isDevelopment => kDebugMode;
   static bool get isProduction => kReleaseMode;
-  // Internal diagnostic builds only. A production build omits this define.
-  static const bool diagnosticsEnabled =
-      kDebugMode || bool.fromEnvironment('MASTER_ABAP_DIAGNOSTICS');
+  // Never expose diagnostic controls in any release, including internal tests.
+  static const bool diagnosticsEnabled = kDebugMode;
 
   // Allowed domains for WebView.
   //

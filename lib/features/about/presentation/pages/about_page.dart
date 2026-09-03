@@ -220,8 +220,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                     'Advertisements do not unlock rewards or Premium access.'),
               ),
             ),
-            // Explicit diagnostic builds only; Play tracks are not detectable
-            // from kReleaseMode. Never promote a diagnostic AAB to production.
+            // Developer debug builds only. No controls in Play release builds.
             if (AppConfig.diagnosticsEnabled) ...[
               Card(
                 child: ExpansionTile(

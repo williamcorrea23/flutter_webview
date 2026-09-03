@@ -1,5 +1,17 @@
 # Ad diagnostics and optional support ad — 2026-09-03
 
+> Updated owner instruction: remove diagnostic controls before Play upload.
+> `AppConfig.diagnosticsEnabled` is now `kDebugMode` only. Release builds cannot
+> enable the panel with a Dart define. The earlier diagnostic artifact below is
+> superseded and must not be uploaded. Banner/configuration fixes remain.
+>
+> Replacement: `C:\Users\William Correa\Downloads\Master-ABAP-1.22.0-22.aab`
+> (58,558,405 bytes), SHA-256
+> `86433DBFF09D4664BB517CE4E0C088EED42509A14518BBAAE13A2EC908ECDC17`.
+> Build and bundletool validation passed; upload certificate verified. Binary
+> inspection confirms both diagnostic buttons and the internal-build notice are
+> absent while the neutral interstitial notice remains. Static analysis passed.
+
 ## Confirmed findings
 
 - Internal v21 reports ads enabled and consent allowed, but no loaded banner.
