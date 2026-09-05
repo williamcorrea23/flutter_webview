@@ -327,9 +327,18 @@ class AdsService extends ChangeNotifier {
           : AppConfig.testInterstitialAdUnitIOS;
     }
 
-    return Platform.isAndroid
+    final configured = Platform.isAndroid
         ? _remoteConfig.interstitialAdUnitAndroid
         : _remoteConfig.interstitialAdUnitIOS;
+    // A stale/empty Remote Config value must not permanently disable ads.
+    // Fall back to the bundled production unit and keep the reason visible in
+    // diagnostics rather than returning before making any request.
+    if (configured.trim().isNotEmpty) return configured.trim();
+    return Platform.isAndroid
+        ? (AppConfig.remoteConfigDefaults['ads.interstitial.adUnitId.android']
+            as String)
+        : (AppConfig.remoteConfigDefaults['ads.interstitial.adUnitId.ios']
+            as String);
   }
 
   void onPageNavigation() {
