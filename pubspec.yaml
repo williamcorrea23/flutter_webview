@@ -1,7 +1,7 @@
 name: master_abap
-description: "Official Master ABAP mobile app"
+description: "Official Mastering ABAP mobile app"
 publish_to: 'none'
-version: 1.22.0+22
+version: 1.22.2+24
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
@@ -103,17 +103,18 @@ flutter_launcher_icons:
     generate: false
 
 # Splash Screen Configuration
-# Uses the app's own ABAP icon over the brand colour (SupABAP.aia &HFF525CC7).
-# It previously showed assets/images/logoMM.png, an asset the .aia ships but
-# never references — no Screen1 component displays it.
+# Uses a dedicated, safe-area-aware Mastering ABAP lockup over the established
+# brand colour. The launcher icon remains independent from the splash artwork.
 flutter_native_splash:
-  color: "#525CC7"
-  image: "assets/icons/app_icon.png"
-  color_dark: "#525CC7"
-  image_dark: "assets/icons/app_icon.png"
+  color: "#1D4453"
+  image: "assets/images/mastering_abap_splash.png"
+  color_dark: "#1D4453"
+  image_dark: "assets/images/mastering_abap_splash.png"
   android_12:
-    image: "assets/icons/app_icon.png"
-    icon_background_color: "#525CC7"
-    image_dark: "assets/icons/app_icon.png"
-    icon_background_color_dark: "#525CC7"
+    # Android 12 masks the centre artwork; use a symbol-only transparent layer
+    # while pre-12 Android and iOS retain the complete product wordmark.
+    image: "assets/images/mastering_abap_splash_symbol.png"
+    icon_background_color: "#1D4453"
+    image_dark: "assets/images/mastering_abap_splash_symbol.png"
+    icon_background_color_dark: "#1D4453"
   web: false
