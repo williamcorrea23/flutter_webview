@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../../shared/constants/app_constants.dart';
 
 class AppConfig {
-  static const String appName = AppConstants.appName;
-  static const String primaryUrl = 'https://supabapnew.vercel.app/';
+  static const String appName = String.fromEnvironment('APP_NAME', defaultValue: AppConstants.appName);
+  static const String primaryUrl = String.fromEnvironment(
+    'WEB_PRIMARY_URL',
+    defaultValue: 'https://supabapnew.vercel.app/',
+  );
+  static const String sdPrimaryUrl = 'https://master-sales-seven.vercel.app/';
 
   // Environment
   static bool get isDevelopment => kDebugMode;
@@ -19,6 +23,8 @@ class AppConfig {
   // that exposes purchases, sign-in and the Firebase ID token. Adding a CDN or
   // an analytics host here grants it all of that. See NavigationPolicy.
   static const List<String> allowedDomains = [
+    'master-sales-seven.vercel.app',
+    'master-sales.vercel.app',
     'supabapnew.vercel.app',
   ];
 

@@ -44,6 +44,7 @@ class PurchasesService {
   static const List<String> premiumEntitlementIds = [
     'The Bug Amazing Factory of Apps Pro',
     'entl4959706b0a',
+    'supsales_premium',
     'premium',
   ];
 
