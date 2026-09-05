@@ -22,6 +22,11 @@ class AdConsent extends ConsentService {
   bool allowed = true;
   @override
   bool get canRequestAds => allowed;
+  void setAllowed(bool value) {
+    allowed = value;
+    notifyListeners();
+  }
+
   @override
   bool get isInitialized => true;
   @override
@@ -56,6 +61,81 @@ void main() {
   tearDown(
       () => messenger.setMockMethodCallHandler(instanceManager.channel, null));
 
+  testWidgets('late consent starts ads without restarting the app',
+      (tester) async {
+    final consent = AdConsent()..allowed = false;
+    final service = AdsService(AdConfig(), consent);
+    await service.initialize();
+    expect(interstitialIds, isEmpty);
+    consent.setAllowed(true);
+    await tester.pump();
+    expect(interstitialIds, hasLength(1));
+    consent.setAllowed(false);
+    await tester.pump();
+    expect(service.canShowInterstitialOnAction(), false);
+    service.dispose();
+  });
+
+  testWidgets('failed interstitial retries and recovers', (tester) async {
+    final service = AdsService(AdConfig(), AdConsent());
+    await service.initialize();
+    final first =
+        instanceManager.adFor(interstitialIds.single) as InterstitialAd;
+    first.adLoadCallback
+        .onAdFailedToLoad(LoadAdError(3, 'ads', 'No fill', null));
+    await tester.pump(const Duration(seconds: 4));
+    expect(interstitialIds, hasLength(1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(interstitialIds, hasLength(2));
+    final second =
+        instanceManager.adFor(interstitialIds.last) as InterstitialAd;
+    second.adLoadCallback.onAdLoaded(second);
+    expect(service.canShowInterstitialOnAction(), true);
+    service.dispose();
+  });
+
+  testWidgets('missing callback retries and rejects stale success',
+      (tester) async {
+    final service = AdsService(AdConfig(), AdConsent());
+    await service.initialize();
+    final first =
+        instanceManager.adFor(interstitialIds.single) as InterstitialAd;
+    await tester.pump(const Duration(seconds: 30));
+    expect(service.interstitialDiagnostics.errorCode, -2);
+    await tester.pump(const Duration(seconds: 5));
+    first.adLoadCallback.onAdLoaded(first);
+    expect(service.canShowInterstitialOnAction(), false);
+    expect(interstitialIds, hasLength(2));
+    service.dispose();
+  });
+
+  testWidgets('failed show does not start cooldown; success needs SDK callback',
+      (tester) async {
+    final service = AdsService(AdConfig(), AdConsent());
+    await service.initialize();
+    final first =
+        instanceManager.adFor(interstitialIds.single) as InterstitialAd;
+    first.adLoadCallback.onAdLoaded(first);
+    final failedShow = service.showInterstitialOnAction();
+    await tester.pump();
+    expect(service.getDebugInfo()['lastInterstitialShown'], isNull);
+    first.fullScreenContentCallback!.onAdFailedToShowFullScreenContent!(
+        first, AdError(1, 'ads', 'Unable to show'));
+    expect(await failedShow, false);
+    await tester.pump(const Duration(seconds: 5));
+    final second =
+        instanceManager.adFor(interstitialIds.last) as InterstitialAd;
+    second.adLoadCallback.onAdLoaded(second);
+    final successfulShow = service.showInterstitialOnAction();
+    await tester.pump();
+    second.fullScreenContentCallback!.onAdShowedFullScreenContent!(second);
+    expect(await successfulShow, true);
+    expect(service.getDebugInfo()['lastInterstitialShown'], isNotNull);
+    second.fullScreenContentCallback!.onAdDismissedFullScreenContent!(second);
+    await tester.pump();
+    service.dispose();
+  });
+
   test('provider owns and disposes the ads service exactly once', () {
     final container = ProviderContainer();
 
@@ -89,13 +169,13 @@ void main() {
   testWidgets('banner callback timeout allows retry and ignores late success',
       (tester) async {
     final service = AdsService(AdConfig(), AdConsent());
-    addTearDown(service.dispose);
     await service.initialize();
     final pending = instanceManager.adFor(bannerIds.single) as BannerAd;
     await tester.pump(const Duration(seconds: 31));
     expect(service.bannerDiagnostics.errorCode, -2);
     pending.listener.onAdLoaded!(pending);
     expect(service.bannerAd, isNull);
+    service.dispose();
   });
 
   test(

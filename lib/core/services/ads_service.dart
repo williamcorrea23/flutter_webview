@@ -30,6 +30,11 @@ class AdsService extends ChangeNotifier {
   BannerAd? _bannerAd;
   BannerAd? _pendingBannerAd;
   Timer? _bannerTimeout;
+  Timer? _interstitialRetry;
+  Timer? _interstitialTimeout;
+  int _interstitialFailures = 0;
+  bool _showingInterstitial = false;
+  Completer<bool>? _showResult;
   int _bannerGeneration = 0;
   int _interstitialGeneration = 0;
   bool _disposed = false;
@@ -43,7 +48,32 @@ class AdsService extends ChangeNotifier {
   int _pageNavigationCount = 0;
   DateTime? _lastInterstitialShown;
 
-  AdsService(this._remoteConfig, this._consentService);
+  AdsService(this._remoteConfig, this._consentService) {
+    _consentService.addListener(_onEligibilityChanged);
+    _remoteConfig.addListener(_onEligibilityChanged);
+  }
+
+  void _onEligibilityChanged() {
+    if (_disposed || !_isInitialized) return;
+    unawaited(_refreshAfterChange());
+  }
+
+  Future<void> _refreshAfterChange() async {
+    try {
+      await refreshAds();
+    } catch (error) {
+      _logger.w('Could not refresh ads: $error');
+    }
+  }
+
+  void _retryInterstitial() {
+    if (_disposed || _interstitialFailures >= 5) return;
+    _interstitialRetry?.cancel();
+    final seconds = 5 * (1 << _interstitialFailures++);
+    _interstitialRetry = Timer(Duration(seconds: seconds), () {
+      unawaited(_loadInterstitialAd());
+    });
+  }
 
   bool get isInitialized => _isInitialized;
   BannerAd? get bannerAd => _bannerAd;
@@ -180,6 +210,8 @@ class AdsService extends ChangeNotifier {
     }
 
     final generation = ++_interstitialGeneration;
+    _interstitialRetry?.cancel();
+    _interstitialTimeout?.cancel();
     try {
       final adUnitId = _getInterstitialAdUnitId();
       if (adUnitId.isEmpty) {
@@ -189,6 +221,14 @@ class AdsService extends ChangeNotifier {
       }
       interstitialDiagnostics.begin();
       notifyListeners();
+      _interstitialTimeout = Timer(const Duration(seconds: 30), () {
+        if (_disposed || generation != _interstitialGeneration) return;
+        _interstitialGeneration++;
+        interstitialDiagnostics.failed(
+            -2, 'app', 'No interstitial callback within 30 seconds', null);
+        notifyListeners();
+        _retryInterstitial();
+      });
 
       await InterstitialAd.load(
         adUnitId: adUnitId,
@@ -200,17 +240,28 @@ class AdsService extends ChangeNotifier {
               return;
             }
             _interstitialAd = ad;
+            _interstitialTimeout?.cancel();
+            _interstitialFailures = 0;
             interstitialDiagnostics.loaded(ad.responseInfo?.responseId);
             notifyListeners();
             _logger.i('Interstitial ad loaded successfully');
 
             ad.fullScreenContentCallback = FullScreenContentCallback(
               onAdShowedFullScreenContent: (ad) {
+                if (_disposed) return;
+                _lastInterstitialShown = DateTime.now();
+                if (_showResult?.isCompleted == false) {
+                  _showResult!.complete(true);
+                }
                 _logger.i('Interstitial ad showed full screen');
               },
               onAdDismissedFullScreenContent: (ad) {
                 _logger.i('Interstitial ad dismissed');
                 unawaited(ad.dispose());
+                _showingInterstitial = false;
+                if (_showResult?.isCompleted == false) {
+                  _showResult!.complete(false);
+                }
                 if (_disposed || generation != _interstitialGeneration) return;
                 _interstitialAd = null;
                 // Pre-load next interstitial
@@ -218,26 +269,37 @@ class AdsService extends ChangeNotifier {
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
                 unawaited(ad.dispose());
+                _showingInterstitial = false;
+                if (_showResult?.isCompleted == false) {
+                  _showResult!.complete(false);
+                }
                 if (_disposed || generation != _interstitialGeneration) return;
                 _interstitialAd = null;
-                unawaited(_loadInterstitialAd());
+                interstitialDiagnostics.failed(
+                    error.code, error.domain, error.message, null);
+                notifyListeners();
+                _retryInterstitial();
               },
             );
           },
           onAdFailedToLoad: (error) {
             if (_disposed || generation != _interstitialGeneration) return;
+            _interstitialTimeout?.cancel();
             interstitialDiagnostics.failed(error.code, error.domain,
                 error.message, error.responseInfo?.responseId);
             _interstitialAd = null;
             notifyListeners();
+            _retryInterstitial();
           },
         ),
       );
     } catch (e) {
       if (_disposed || generation != _interstitialGeneration) return;
+      _interstitialTimeout?.cancel();
       interstitialDiagnostics.failed(
           -1, 'app', 'Interstitial load exception (${e.runtimeType})', null);
       notifyListeners();
+      _retryInterstitial();
     }
   }
 
@@ -281,6 +343,7 @@ class AdsService extends ChangeNotifier {
   /// a consent dialog is open.
   bool canShowInterstitialOnAction({bool force = false}) {
     if (_disposed ||
+        _showingInterstitial ||
         !_remoteConfig.adsEnabled ||
         !_remoteConfig.interstitialAdsEnabled ||
         !_consentService.canRequestAds ||
@@ -313,16 +376,18 @@ class AdsService extends ChangeNotifier {
     // Reserve this single-use ad before crossing an async boundary. A second
     // bridge or navigation request must not be able to show the same instance.
     _interstitialAd = null;
+    _showingInterstitial = true;
+    final result = Completer<bool>();
+    _showResult = result;
 
     try {
       await ad.show();
-      _lastInterstitialShown = DateTime.now();
-      _logger.i('Interstitial ad shown');
-      return true;
+      return await result.future;
     } catch (e) {
+      _showingInterstitial = false;
       _logger.e('Error showing interstitial ad: $e');
       unawaited(ad.dispose());
-      unawaited(_loadInterstitialAd());
+      _retryInterstitial();
       return false;
     }
   }
@@ -369,6 +434,10 @@ class AdsService extends ChangeNotifier {
     // platform side and the reload below must not wait on it.
     _bannerGeneration++;
     _interstitialGeneration++;
+    _interstitialRetry?.cancel();
+    _interstitialTimeout?.cancel();
+    _interstitialFailures = 0;
+    final generation = _interstitialGeneration;
     _bannerTimeout?.cancel();
     unawaited(_pendingBannerAd?.dispose() ?? Future<void>.value());
     _pendingBannerAd = null;
@@ -382,13 +451,20 @@ class AdsService extends ChangeNotifier {
     if (_remoteConfig.adsEnabled && _consentService.canRequestAds) {
       await _ensureSdkReady();
     }
+    if (_disposed || generation != _interstitialGeneration) return;
     await _loadBannerAd();
+    if (_disposed || generation != _interstitialGeneration) return;
     await _loadInterstitialAd();
   }
 
   @override
   void dispose() {
     _disposed = true;
+    _consentService.removeListener(_onEligibilityChanged);
+    _remoteConfig.removeListener(_onEligibilityChanged);
+    _interstitialRetry?.cancel();
+    _interstitialTimeout?.cancel();
+    if (_showResult?.isCompleted == false) _showResult!.complete(false);
     _bannerTimeout?.cancel();
     _bannerGeneration++;
     _interstitialGeneration++;

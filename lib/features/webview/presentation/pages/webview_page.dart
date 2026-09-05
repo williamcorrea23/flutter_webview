@@ -105,6 +105,9 @@ String _jsBridgeCode(String token) => '''
     isPremiumActive: function() {
       return window.flutter_inappwebview.callHandler('isPremiumActive', t);
     },
+    triggerInterstitialOnAction: function() {
+      return window.flutter_inappwebview.callHandler('triggerInterstitialOnAction', t);
+    },
     signInWithGoogle: function() {
       return window.flutter_inappwebview.callHandler('signInWithGoogle', t);
     },
@@ -290,7 +293,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         return _interstitialRequests.run(
           canShow: () {
             if (!mounted) return false;
-            if (ref.read(isPremiumProvider).value ?? false) return false;
+            if (ref.read(isPremiumProvider).value != false) return false;
             return adsService.canShowInterstitialOnAction();
           },
           requestConsent: _confirmInterstitialAd,
@@ -377,7 +380,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
       handlerName: 'getAuthUser',
       callback: (args) async {
         if (await _admit(args) == null) return null;
-        return authService.describeUser();
+        return authService.getAuthUser();
       },
     );
 

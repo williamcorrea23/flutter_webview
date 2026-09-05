@@ -28,6 +28,23 @@ class AuthService {
   FirebaseAuth get _auth => FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  static String? _nonEmpty(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+
+  /// Refresh persisted Firebase profile fields without losing the offline user.
+  Future<Map<String, dynamic>?> getAuthUser() async {
+    final user = currentUser;
+    if (user == null) return null;
+    try {
+      await user.reload().timeout(const Duration(seconds: 5));
+    } catch (error) {
+      _logger.w('Could not refresh profile: ${error.runtimeType}');
+    }
+    return describeUser();
+  }
+
   /// Emits on sign-in, sign-out and token refresh.
   ///
   /// Guarded for the same reason [currentUser] is: main.dart carries on when
@@ -58,11 +75,21 @@ class AuthService {
   Map<String, dynamic>? describeUser([User? user]) {
     final u = user ?? currentUser;
     if (u == null) return null;
+    UserInfo? googleProfile;
+    for (final provider in u.providerData) {
+      if (provider.providerId == 'google.com') {
+        googleProfile = provider;
+        break;
+      }
+    }
     return {
       'uid': u.uid,
       'email': u.email,
-      'displayName': u.displayName,
-      'photoUrl': u.photoURL,
+      // Older or linked Firebase accounts can keep these fields only on the
+      // Google provider record instead of copying them to the root user.
+      'displayName':
+          _nonEmpty(u.displayName) ?? _nonEmpty(googleProfile?.displayName),
+      'photoUrl': _nonEmpty(u.photoURL) ?? _nonEmpty(googleProfile?.photoURL),
       'emailVerified': u.emailVerified,
       'providers': u.providerData.map((p) => p.providerId).toList(),
       'isAnonymous': u.isAnonymous,
@@ -104,6 +131,17 @@ class AuthService {
       );
 
       final result = await _auth.signInWithCredential(credential);
+      // Persist the account photo so later getAuthUser calls and restored
+      // sessions receive it too, even when Firebase omitted the root field.
+      final user = result.user;
+      final photo = _nonEmpty(account.photoUrl);
+      if (user != null && photo != null && _nonEmpty(user.photoURL) == null) {
+        try {
+          await user.updatePhotoURL(photo).timeout(const Duration(seconds: 5));
+        } catch (error) {
+          _logger.w('Could not persist Google photo: ${error.runtimeType}');
+        }
+      }
       _logger.i('Google sign-in succeeded');
       return {'success': true, 'user': describeUser(result.user)};
     } on FirebaseAuthException catch (e) {

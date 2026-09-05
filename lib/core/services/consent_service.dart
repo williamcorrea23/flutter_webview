@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' as google_ads;
 import 'package:logger/logger.dart';
 
 final consentServiceProvider = Provider<ConsentService>((ref) {
-  return ConsentService();
+  final service = ConsentService();
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 enum ConsentStatus {
@@ -15,12 +18,23 @@ enum ConsentStatus {
   obtained,
 }
 
-class ConsentService {
+class ConsentService extends ChangeNotifier {
   static final Logger _logger = Logger();
 
   ConsentStatus _consentStatus = ConsentStatus.unknown;
   bool _isInitialized = false;
   bool _canRequestAds = false;
+  bool _disposed = false;
+
+  void _publishState() {
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   ConsentStatus get consentStatus => _consentStatus;
   bool get canRequestAds => _canRequestAds;
@@ -50,6 +64,7 @@ class ConsentService {
           google_ads.ConsentStatus.unknown => ConsentStatus.unknown,
         };
         _canRequestAds = await information.canRequestAds();
+        _publishState();
       }
 
       information.requestConsentInfoUpdate(
@@ -71,10 +86,17 @@ class ConsentService {
             complete();
           }
         },
-        (error) {
+        (error) async {
           _logger.e('Failed to update consent information: ${error.message}');
-          _canRequestAds = false;
-          complete();
+          try {
+            // UMP can still authorize ads from a previous session.
+            await syncState();
+          } catch (_) {
+            _canRequestAds = false;
+            _publishState();
+          } finally {
+            complete();
+          }
         },
       );
 
@@ -100,6 +122,7 @@ class ConsentService {
       _consentStatus = ConsentStatus.unknown;
       _canRequestAds = false;
       _isInitialized = false;
+      _publishState();
 
       await google_ads.ConsentInformation.instance.reset();
       await initialize();
@@ -126,6 +149,7 @@ class ConsentService {
             google_ads.ConsentStatus.required => ConsentStatus.required,
             google_ads.ConsentStatus.unknown => ConsentStatus.unknown,
           };
+          _publishState();
         } catch (refreshError) {
           _logger.e('Failed to refresh consent state: $refreshError');
         }
