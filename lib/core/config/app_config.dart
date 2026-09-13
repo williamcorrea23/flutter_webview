@@ -26,6 +26,8 @@ class AppConfig {
     'master-sales-seven.vercel.app',
     'master-sales.vercel.app',
     'supabapnew.vercel.app',
+    'supabap.co',
+    'www.supabap.co',
   ];
 
   // External link patterns (will open in system browser)
@@ -52,14 +54,14 @@ class AppConfig {
   // revenue silently dead.
   static const Map<String, dynamic> remoteConfigDefaults = {
     'ads.enabled': true,
-    'ads.testMode': false,
+    'ads.testMode': true,
     'ads.banner.enabled': true,
     'ads.banner.placement': 'bottom',
     'ads.banner.adUnitId.android': 'ca-app-pub-8785125235072301/5430581499',
     'ads.banner.adUnitId.ios': 'ca-app-pub-3940256099942544/2934735716',
     'ads.interstitial.enabled': true,
     'ads.interstitial.frequency': 0,
-    'ads.interstitial.interval_seconds': 90,
+    'ads.interstitial.interval_seconds': 60,
     'ads.interstitial.adUnitId.android':
         'ca-app-pub-8785125235072301/9453640886',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',

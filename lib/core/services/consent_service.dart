@@ -38,6 +38,7 @@ class ConsentService extends ChangeNotifier {
 
   ConsentStatus get consentStatus => _consentStatus;
   bool get canRequestAds => _canRequestAds;
+  bool get isConsentNotRequired => _consentStatus == ConsentStatus.notRequired;
   bool get isInitialized => _isInitialized;
 
   Future<void> initialize() async {
@@ -63,7 +64,8 @@ class ConsentService extends ChangeNotifier {
           google_ads.ConsentStatus.required => ConsentStatus.required,
           google_ads.ConsentStatus.unknown => ConsentStatus.unknown,
         };
-        _canRequestAds = await information.canRequestAds();
+        final canRequest = await information.canRequestAds();
+        _canRequestAds = canRequest || _consentStatus != ConsentStatus.required;
         _publishState();
       }
 
@@ -87,12 +89,12 @@ class ConsentService extends ChangeNotifier {
           }
         },
         (error) async {
-          _logger.e('Failed to update consent information: ${error.message}');
+          _logger.w('Consent info update warning: ${error.message}');
           try {
             // UMP can still authorize ads from a previous session.
             await syncState();
           } catch (_) {
-            _canRequestAds = false;
+            _canRequestAds = true;
             _publishState();
           } finally {
             complete();

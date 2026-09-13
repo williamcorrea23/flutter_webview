@@ -75,21 +75,16 @@ class AuthService {
   Map<String, dynamic>? describeUser([User? user]) {
     final u = user ?? currentUser;
     if (u == null) return null;
-    UserInfo? googleProfile;
-    for (final provider in u.providerData) {
-      if (provider.providerId == 'google.com') {
-        googleProfile = provider;
-        break;
-      }
-    }
+    final googleProfile = u.providerData
+        .cast<UserInfo?>()
+        .firstWhere((p) => p?.providerId == 'google.com', orElse: () => null);
+    final fallbackPhoto = _nonEmpty(googleProfile?.photoURL);
+    final fallbackName = _nonEmpty(googleProfile?.displayName);
     return {
       'uid': u.uid,
       'email': u.email,
-      // Older or linked Firebase accounts can keep these fields only on the
-      // Google provider record instead of copying them to the root user.
-      'displayName':
-          _nonEmpty(u.displayName) ?? _nonEmpty(googleProfile?.displayName),
-      'photoUrl': _nonEmpty(u.photoURL) ?? _nonEmpty(googleProfile?.photoURL),
+      'displayName': _nonEmpty(u.displayName) ?? fallbackName,
+      'photoUrl': _nonEmpty(u.photoURL) ?? fallbackPhoto,
       'emailVerified': u.emailVerified,
       'providers': u.providerData.map((p) => p.providerId).toList(),
       'isAnonymous': u.isAnonymous,
@@ -114,9 +109,11 @@ class AuthService {
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
       // Sign the Google account out first so the picker always appears.
-      // Without this a second sign-in silently reuses the cached account, and
-      // a user who wants to switch accounts has no way to.
-      await _googleSignIn.signOut();
+      try {
+        await _googleSignIn.signOut();
+      } catch (e) {
+        _logger.w('Google pre-signOut ignored: $e');
+      }
 
       final account = await _googleSignIn.signIn();
       if (account == null) {
@@ -149,7 +146,7 @@ class AuthService {
       return {'success': false, 'code': e.code, 'error': _messageFor(e)};
     } catch (e) {
       _logger.e('Google sign-in failed: $e');
-      return {'success': false, 'error': 'Could not sign in with Google.'};
+      return {'success': false, 'error': 'Could not sign in with Google ($e)'};
     }
   }
 

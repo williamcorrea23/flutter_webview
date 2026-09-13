@@ -18,6 +18,13 @@ const adRemoteAliases = <String, List<String>>{
     'ad_unit_banner'
   ],
   'ads.interstitial.enabled': ['ads_interstitial_enabled'],
+  'ads.interstitial.interval_seconds': [
+    'ad_interval_seconds',
+    'interstitial_interval_seconds',
+  ],
+  'ads.interstitial.frequency': [
+    'interstitial_frequency',
+  ],
   'ads.interstitial.adUnitId.android': [
     'ads_interstitial_ad_unit_android',
     'interstitial_ad_id',
@@ -112,7 +119,7 @@ class RemoteConfigService extends ChangeNotifier {
   int get interstitialFrequency => _getInt('ads.interstitial.frequency');
   int get interstitialIntervalSeconds {
     final value = _getInt('ads.interstitial.interval_seconds');
-    return value > 0 ? value : 90;
+    return value > 0 ? value : 60;
   }
 
   String get interstitialAdUnitAndroid =>

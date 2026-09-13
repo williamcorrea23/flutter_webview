@@ -1,19 +1,25 @@
-import '../../../core/config/app_config.dart';
+import '../domain/navigation_policy.dart';
 
 /// Only a completed practice-session transition, never tab browsing or launch.
 bool isPracticeCompletionTransition(String? previous, String current) {
   final before = Uri.tryParse(previous ?? '');
   final after = Uri.tryParse(current);
-  final app = Uri.parse(AppConfig.primaryUrl);
-  bool trusted(Uri? uri) =>
-      uri != null &&
-      uri.scheme == app.scheme &&
-      uri.host == app.host &&
-      uri.port == app.port;
-  return trusted(before) &&
-      trusted(after) &&
-      before!.path == '/practice' &&
-      after!.path == '/practice/results';
+  if (before == null || after == null) return false;
+
+  bool trusted(Uri uri) =>
+      uri.scheme.toLowerCase() == 'https' &&
+      NavigationPolicy.isAllowedDomain(uri.host);
+
+  if (!trusted(before) || !trusted(after)) return false;
+
+  final beforePath = before.path.endsWith('/') && before.path.length > 1
+      ? before.path.substring(0, before.path.length - 1)
+      : before.path;
+  final afterPath = after.path.endsWith('/') && after.path.length > 1
+      ? after.path.substring(0, after.path.length - 1)
+      : after.path;
+
+  return beforePath == '/practice' && afterPath == '/practice/results';
 }
 
 /// Coordinates action-triggered interstitial requests so only one consent and

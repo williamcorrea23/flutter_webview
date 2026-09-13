@@ -53,6 +53,8 @@ class AdsService extends ChangeNotifier {
     _remoteConfig.addListener(_onEligibilityChanged);
   }
 
+  bool get _canRequestAdsNow => _consentService.canRequestAds;
+
   void _onEligibilityChanged() {
     if (_disposed || !_isInitialized) return;
     unawaited(_refreshAfterChange());
@@ -82,13 +84,16 @@ class AdsService extends ChangeNotifier {
     if (_isInitialized) return;
 
     try {
+      _remoteConfig.addListener(_refreshAfterChange);
+      _consentService.addListener(_refreshAfterChange);
+
       // Wait for consent service to be ready
       if (!_consentService.isInitialized) {
         await _consentService.initialize();
       }
 
       // Only initialize ads if consent allows and ads are enabled
-      if (_consentService.canRequestAds && _remoteConfig.adsEnabled) {
+      if (_canRequestAdsNow && _remoteConfig.adsEnabled) {
         await _ensureSdkReady();
       }
       await _loadBannerAd();
@@ -112,7 +117,7 @@ class AdsService extends ChangeNotifier {
     if (_disposed) return;
     if (!_remoteConfig.adsEnabled ||
         !_remoteConfig.bannerAdsEnabled ||
-        !_consentService.canRequestAds) {
+        !_canRequestAdsNow) {
       bannerDiagnostics.state =
           !_remoteConfig.adsEnabled || !_remoteConfig.bannerAdsEnabled
               ? 'disabled_by_config'
@@ -148,6 +153,8 @@ class AdsService extends ChangeNotifier {
             null);
         notifyListeners();
       });
+
+      await _ensureSdkReady();
 
       final candidate = BannerAd(
         adUnitId: adUnitId,
@@ -196,11 +203,11 @@ class AdsService extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadInterstitialAd() async {
-    if (_disposed) return;
+  Future<void> _loadInterstitialAd({String? overrideUnitId}) async {
+    if (_disposed || _interstitialAd != null) return;
     if (!_remoteConfig.adsEnabled ||
         !_remoteConfig.interstitialAdsEnabled ||
-        !_consentService.canRequestAds) {
+        !_canRequestAdsNow) {
       interstitialDiagnostics.state =
           !_remoteConfig.adsEnabled || !_remoteConfig.interstitialAdsEnabled
               ? 'disabled_by_config'
@@ -213,7 +220,7 @@ class AdsService extends ChangeNotifier {
     _interstitialRetry?.cancel();
     _interstitialTimeout?.cancel();
     try {
-      final adUnitId = _getInterstitialAdUnitId();
+      final adUnitId = overrideUnitId ?? _getInterstitialAdUnitId();
       if (adUnitId.isEmpty) {
         interstitialDiagnostics.state = 'missing_ad_unit';
         notifyListeners();
@@ -230,6 +237,8 @@ class AdsService extends ChangeNotifier {
         _retryInterstitial();
       });
 
+      await _ensureSdkReady();
+
       await InterstitialAd.load(
         adUnitId: adUnitId,
         request: _buildAdRequest(),
@@ -244,7 +253,7 @@ class AdsService extends ChangeNotifier {
             _interstitialFailures = 0;
             interstitialDiagnostics.loaded(ad.responseInfo?.responseId);
             notifyListeners();
-            _logger.i('Interstitial ad loaded successfully');
+            _logger.i('Interstitial ad loaded successfully ($adUnitId)');
 
             ad.fullScreenContentCallback = FullScreenContentCallback(
               onAdShowedFullScreenContent: (ad) {
@@ -289,6 +298,17 @@ class AdsService extends ChangeNotifier {
                 error.message, error.responseInfo?.responseId);
             _interstitialAd = null;
             notifyListeners();
+
+            final testUnitId = Platform.isAndroid
+                ? AppConfig.testInterstitialAdUnitAndroid
+                : AppConfig.testInterstitialAdUnitIOS;
+            if (overrideUnitId == null && adUnitId != testUnitId) {
+              _logger.w(
+                  'Interstitial load failed for $adUnitId (code ${error.code}); retrying with test unit $testUnitId');
+              unawaited(_loadInterstitialAd(overrideUnitId: testUnitId));
+              return;
+            }
+
             _retryInterstitial();
           },
         ),
@@ -343,6 +363,71 @@ class AdsService extends ChangeNotifier {
 
   void onPageNavigation() {
     _pageNavigationCount++;
+    _logger.i('Page navigation count: $_pageNavigationCount');
+    if (_interstitialAd == null && _canRequestAdsNow) {
+      unawaited(_loadInterstitialAd());
+    }
+  }
+
+  /// Whether an interstitial can be shown on page navigation.
+  bool canShowInterstitialOnNavigation({bool force = false}) {
+    if (_disposed ||
+        _showingInterstitial ||
+        !_remoteConfig.adsEnabled ||
+        !_remoteConfig.interstitialAdsEnabled ||
+        !_canRequestAdsNow) {
+      return false;
+    }
+
+    // Do not trigger immediately on the initial screen load
+    if (_lastInterstitialShown == null && _pageNavigationCount <= 1) {
+      return false;
+    }
+
+    if (!force && _lastInterstitialShown != null) {
+      final timeSinceLastAd =
+          DateTime.now().difference(_lastInterstitialShown!);
+      final minInterval = _remoteConfig.adsTestMode
+          ? 5
+          : _remoteConfig.interstitialIntervalSeconds;
+      if (timeSinceLastAd.inSeconds < minInterval) {
+        return false;
+      }
+    }
+
+    final frequency = _remoteConfig.interstitialFrequency;
+    if (frequency > 0 && (_pageNavigationCount % frequency != 0)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Whether an action-triggered interstitial is structurally eligible to be
+  /// requested right now (ignoring whether an ad instance is already in memory).
+  bool isEligibleForInterstitial({bool force = false}) {
+    if (_disposed ||
+        _showingInterstitial ||
+        !_remoteConfig.adsEnabled ||
+        !_remoteConfig.interstitialAdsEnabled ||
+        !_canRequestAdsNow) {
+      return false;
+    }
+
+    if (!force && _lastInterstitialShown != null) {
+      final timeSinceLastAd =
+          DateTime.now().difference(_lastInterstitialShown!);
+      final minInterval = _remoteConfig.adsTestMode
+          ? 5
+          : _remoteConfig.interstitialIntervalSeconds;
+      if (timeSinceLastAd.inSeconds < minInterval) {
+        _logger.d(
+            'Interstitial in cooldown: ${timeSinceLastAd.inSeconds}s < ${minInterval}s');
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /// Whether an action-triggered interstitial can be shown right now.
@@ -351,20 +436,17 @@ class AdsService extends ChangeNotifier {
   /// repeats the check because the loaded ad or cooldown state may change while
   /// a consent dialog is open.
   bool canShowInterstitialOnAction({bool force = false}) {
-    if (_disposed ||
-        _showingInterstitial ||
-        !_remoteConfig.adsEnabled ||
-        !_remoteConfig.interstitialAdsEnabled ||
-        !_consentService.canRequestAds ||
-        _interstitialAd == null) {
-      return false;
-    }
+    if (!isEligibleForInterstitial(force: force)) return false;
 
-    if (!force && _lastInterstitialShown != null) {
-      final timeSinceLastAd =
-          DateTime.now().difference(_lastInterstitialShown!);
-      final minInterval = _remoteConfig.interstitialIntervalSeconds;
-      if (timeSinceLastAd.inSeconds < minInterval) return false;
+    if (_interstitialAd == null) {
+      if (!_disposed &&
+          _remoteConfig.adsEnabled &&
+          _remoteConfig.interstitialAdsEnabled &&
+          _canRequestAdsNow) {
+        _logger.d('Interstitial ad not ready yet; scheduling pre-load');
+        unawaited(_loadInterstitialAd());
+      }
+      return false;
     }
 
     return true;
@@ -372,13 +454,27 @@ class AdsService extends ChangeNotifier {
 
   /// Displays an interstitial after a user-initiated action (e.g. AI prompt
   /// response), strictly enforcing the minimum cooldown interval.
-  Future<bool> showInterstitialOnAction({bool force = false}) async {
+  Future<bool> showInterstitialOnAction({
+    bool force = false,
+    bool waitForLoad = true,
+  }) async {
+    if (!isEligibleForInterstitial(force: force)) return false;
+
+    if (_interstitialAd == null && waitForLoad) {
+      _logger.i('Interstitial not ready on action, waiting briefly for load...');
+      unawaited(_loadInterstitialAd());
+      for (var i = 0; i < 50; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (_interstitialAd != null || _disposed) break;
+      }
+    }
+
     if (!canShowInterstitialOnAction(force: force)) return false;
-    return showInterstitial();
+    return showInterstitial(force: force);
   }
 
-  Future<bool> showInterstitial() async {
-    if (!canShowInterstitialOnAction()) return false;
+  Future<bool> showInterstitial({bool force = false}) async {
+    if (!canShowInterstitialOnAction(force: force)) return false;
     final ad = _interstitialAd;
     if (ad == null) return false;
 
@@ -420,7 +516,7 @@ class AdsService extends ChangeNotifier {
     notifyListeners();
     if (_remoteConfig.adsEnabled &&
         _remoteConfig.bannerAdsEnabled &&
-        _consentService.canRequestAds) {
+        _canRequestAdsNow) {
       try {
         await _ensureSdkReady();
       } catch (e) {
@@ -457,7 +553,7 @@ class AdsService extends ChangeNotifier {
     _interstitialAd = null;
 
     // Reload if ads are enabled
-    if (_remoteConfig.adsEnabled && _consentService.canRequestAds) {
+    if (_remoteConfig.adsEnabled && _canRequestAdsNow) {
       await _ensureSdkReady();
     }
     if (_disposed || generation != _interstitialGeneration) return;

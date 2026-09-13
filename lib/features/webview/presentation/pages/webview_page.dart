@@ -293,11 +293,11 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         return _interstitialRequests.run(
           canShow: () {
             if (!mounted) return false;
-            if (ref.read(isPremiumProvider).value != false) return false;
-            return adsService.canShowInterstitialOnAction();
+            if (ref.read(isPremiumProvider).value == true) return false;
+            return adsService.isEligibleForInterstitial();
           },
-          requestConsent: _confirmInterstitialAd,
-          showAd: adsService.showInterstitialOnAction,
+          requestConsent: () async => true,
+          showAd: () => adsService.showInterstitialOnAction(waitForLoad: true),
         );
       },
     );
@@ -557,10 +557,13 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     _lastCountedNavigation = key;
 
     if (suppressed) return;
-    if (ref.read(isPremiumProvider).value != false) return;
+    if (ref.read(isPremiumProvider).value == true) return;
     final ads = ref.read(adsServiceProvider);
     ads.onPageNavigation();
-    if (!isPracticeCompletionTransition(previous, key)) return;
+    final isPractice = isPracticeCompletionTransition(previous, key);
+    final canShowOnNav = ads.canShowInterstitialOnNavigation();
+    if (!isPractice && !canShowOnNav) return;
+
     // Do not interrupt the synchronous WebView history callback with a dialog.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -568,10 +571,10 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         canShow: () =>
             mounted &&
             _lastCountedNavigation == key &&
-            ref.read(isPremiumProvider).value == false &&
-            ads.canShowInterstitialOnAction(),
-        requestConsent: _confirmInterstitialAd,
-        showAd: ads.showInterstitialOnAction,
+            ref.read(isPremiumProvider).value != true &&
+            ads.isEligibleForInterstitial(),
+        requestConsent: () async => true,
+        showAd: () => ads.showInterstitialOnAction(waitForLoad: true),
       ));
     });
     WidgetsBinding.instance.scheduleFrame();
@@ -777,6 +780,14 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
                           _isLoading = false;
                           _loadingProgress = 1.0;
                         });
+
+                        if (await _isTrustedBridgeContext()) {
+                          await controller.evaluateJavascript(source: '''
+                            if (typeof window.NativeApp === 'undefined') {
+                              ${_jsBridgeCode(_bridgeToken)}
+                            }
+                          ''');
+                        }
 
                         await _refreshCanGoBack();
                         if (!mounted) return;
