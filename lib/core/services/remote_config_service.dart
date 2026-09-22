@@ -25,6 +25,9 @@ const adRemoteAliases = <String, List<String>>{
   'ads.interstitial.frequency': [
     'interstitial_frequency',
   ],
+  'ads.interstitial.usage_seconds': [
+    'interstitial_usage_seconds',
+  ],
   'ads.interstitial.adUnitId.android': [
     'ads_interstitial_ad_unit_android',
     'interstitial_ad_id',
@@ -120,6 +123,13 @@ class RemoteConfigService extends ChangeNotifier {
   int get interstitialIntervalSeconds {
     final value = _getInt('ads.interstitial.interval_seconds');
     return value > 0 ? value : 60;
+  }
+
+  /// Foreground seconds since the last interstitial before another one may be
+  /// offered at a natural break. Zero disables the usage requirement.
+  int get interstitialUsageSeconds {
+    final value = _getInt('ads.interstitial.usage_seconds');
+    return value < 0 ? 0 : value;
   }
 
   String get interstitialAdUnitAndroid =>

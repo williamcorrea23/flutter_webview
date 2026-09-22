@@ -367,14 +367,99 @@ class PurchasesService {
       final purchaseResult =
           await Purchases.purchase(PurchaseParams.package(package));
       final customerInfo = purchaseResult.customerInfo;
+      final active = customerInfo.entitlements.active.keys.toList();
+      if (hasPremium(active)) {
+        return {'success': true, 'entitlements': active};
+      }
 
+      // The transaction finished, yet no entitlement came back. That is a
+      // store/dashboard misconfiguration (a product not attached to the
+      // entitlement, or Play credentials missing in RevenueCat), not a user
+      // mistake — and it is the one failure where the money may already have
+      // moved, so it must never reach the screen as a bare "purchase failed".
+      _logger.e('Purchase completed without a premium entitlement. '
+          'Active: $active. Product: ${package.storeProduct.identifier}');
       return {
-        'success': hasPremium(customerInfo.entitlements.active.keys),
-        'entitlements': customerInfo.entitlements.active.keys.toList(),
+        'success': false,
+        'entitlements': active,
+        'code': 'entitlementMissing',
+        'error': 'Google Play completed the purchase, but Premium is not '
+            'attached to this account yet. Wait a moment and tap Restore '
+            'purchases. Contact support if it stays locked.',
       };
     } catch (e) {
       _logger.e('Error purchasing package: $e');
-      return {'success': false, 'error': e.toString()};
+      return purchaseFailure(e);
+    }
+  }
+
+  /// Translates a purchase failure into what the web layer should display.
+  ///
+  /// Closing the Play sheet is not an error: it returns `cancelled`, and
+  /// app/premium/page.tsx puts the button back to idle without an alert.
+  /// Everything else gets a sentence the user can act on, because the raw
+  /// PlatformException text used to be rendered verbatim on screen.
+  @visibleForTesting
+  static Map<String, dynamic> purchaseFailure(Object error) {
+    final code = error is PlatformException ? _errorCodeOf(error) : null;
+    if (code == PurchasesErrorCode.purchaseCancelledError) {
+      return {'success': false, 'cancelled': true};
+    }
+    return {
+      'success': false,
+      'code': code?.name ?? 'unknownError',
+      'error': _purchaseErrorMessage(code),
+    };
+  }
+
+  /// [PurchasesErrorHelper.getErrorCode] is `num.parse(e.code)`, and
+  /// non-numeric codes do come off this channel (the Android plugin replies
+  /// `invalidArgs`; Flutter itself replies `error` when a handler throws), so
+  /// the parse is guarded here exactly as it is in [_isAnonymousLogOutError].
+  static PurchasesErrorCode? _errorCodeOf(PlatformException e) {
+    try {
+      return PurchasesErrorHelper.getErrorCode(e);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _purchaseErrorMessage(PurchasesErrorCode? code) {
+    switch (code) {
+      case PurchasesErrorCode.productAlreadyPurchasedError:
+      case PurchasesErrorCode.receiptAlreadyInUseError:
+        return 'You already own this plan. Tap Restore purchases to unlock it '
+            'on this device.';
+      case PurchasesErrorCode.purchaseBelongsToOtherUser:
+      case PurchasesErrorCode.receiptInUseByOtherSubscriberError:
+        return 'This subscription belongs to another account. Sign in with '
+            'that account, then tap Restore purchases.';
+      case PurchasesErrorCode.paymentPendingError:
+        return 'Google Play is still processing the payment. Premium unlocks '
+            'as soon as it clears.';
+      case PurchasesErrorCode.purchaseNotAllowedError:
+        return 'This device or Google account is not allowed to make '
+            'purchases.';
+      case PurchasesErrorCode.productNotAvailableForPurchaseError:
+        return 'This plan is not available for your account or region right '
+            'now.';
+      case PurchasesErrorCode.networkError:
+      case PurchasesErrorCode.offlineConnectionError:
+        return 'No connection to Google Play. Check your internet and try '
+            'again.';
+      case PurchasesErrorCode.storeProblemError:
+      case PurchasesErrorCode.productRequestTimeout:
+        return 'Google Play is unavailable right now. Please try again in a '
+            'few minutes.';
+      case PurchasesErrorCode.invalidCredentialsError:
+      case PurchasesErrorCode.configurationError:
+      case PurchasesErrorCode.invalidReceiptError:
+        return 'The store setup for this app is incomplete, so the purchase '
+            'could not be verified. Nothing was unlocked — please contact '
+            'support.';
+      default:
+        return 'Google Play could not complete the purchase. Please try '
+            'again.';
     }
   }
 
@@ -386,14 +471,17 @@ class PurchasesService {
     }
     try {
       final customerInfo = await Purchases.restorePurchases();
+      final active = customerInfo.entitlements.active.keys.toList();
 
       return {
-        'success': hasPremium(customerInfo.entitlements.active.keys),
-        'entitlements': customerInfo.entitlements.active.keys.toList(),
+        'success': hasPremium(active),
+        'entitlements': active,
+        if (!hasPremium(active))
+          'error': 'No active subscription was found for this Google account.',
       };
     } catch (e) {
       _logger.e('Error restoring purchases: $e');
-      return {'success': false, 'error': e.toString()};
+      return purchaseFailure(e);
     }
   }
 

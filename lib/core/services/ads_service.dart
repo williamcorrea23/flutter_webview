@@ -10,6 +10,7 @@ import '../config/app_config.dart';
 import 'ad_load_diagnostics.dart';
 import 'consent_service.dart';
 import 'remote_config_service.dart';
+import 'usage_time_tracker.dart';
 
 final adsServiceProvider = ChangeNotifierProvider<AdsService>((ref) {
   // ChangeNotifierProvider owns the notifier and calls dispose itself. Adding
@@ -45,10 +46,16 @@ class AdsService extends ChangeNotifier {
   InterstitialAd? _interstitialAd;
 
   bool _isInitialized = false;
+  bool _eligibilityChangedDuringInit = false;
   int _pageNavigationCount = 0;
   DateTime? _lastInterstitialShown;
+  final UsageTimeTracker _usage;
 
-  AdsService(this._remoteConfig, this._consentService) {
+  AdsService(
+    this._remoteConfig,
+    this._consentService, {
+    UsageTimeTracker? usageTracker,
+  }) : _usage = usageTracker ?? (UsageTimeTracker()..setForeground(true)) {
     _consentService.addListener(_onEligibilityChanged);
     _remoteConfig.addListener(_onEligibilityChanged);
   }
@@ -56,7 +63,13 @@ class AdsService extends ChangeNotifier {
   bool get _canRequestAdsNow => _consentService.canRequestAds;
 
   void _onEligibilityChanged() {
-    if (_disposed || !_isInitialized) return;
+    if (_disposed) return;
+    if (!_isInitialized) {
+      // Services initialize in parallel, so Remote Config or consent can settle
+      // while initialize() is still loading with the values it read earlier.
+      _eligibilityChangedDuringInit = true;
+      return;
+    }
     unawaited(_refreshAfterChange());
   }
 
@@ -84,9 +97,6 @@ class AdsService extends ChangeNotifier {
     if (_isInitialized) return;
 
     try {
-      _remoteConfig.addListener(_refreshAfterChange);
-      _consentService.addListener(_refreshAfterChange);
-
       // Wait for consent service to be ready
       if (!_consentService.isInitialized) {
         await _consentService.initialize();
@@ -102,6 +112,10 @@ class AdsService extends ChangeNotifier {
       _isInitialized = true;
       _logger.i(
           'Ads service initialized. Ads enabled: ${_remoteConfig.adsEnabled}');
+      if (_eligibilityChangedDuringInit) {
+        _eligibilityChangedDuringInit = false;
+        await _refreshAfterChange();
+      }
     } catch (e) {
       if (_disposed) return;
       bannerDiagnostics.failed(
@@ -259,6 +273,7 @@ class AdsService extends ChangeNotifier {
               onAdShowedFullScreenContent: (ad) {
                 if (_disposed) return;
                 _lastInterstitialShown = DateTime.now();
+                _usage.reset();
                 if (_showResult?.isCompleted == false) {
                   _showResult!.complete(true);
                 }
@@ -384,6 +399,8 @@ class AdsService extends ChangeNotifier {
       return false;
     }
 
+    if (!force && !usageThresholdReached) return false;
+
     if (!force && _lastInterstitialShown != null) {
       final timeSinceLastAd =
           DateTime.now().difference(_lastInterstitialShown!);
@@ -402,6 +419,21 @@ class AdsService extends ChangeNotifier {
 
     return true;
   }
+
+  /// Counts usage only while the app is in the foreground; an ad on screen
+  /// pauses the activity, so its own display time is not counted either.
+  void setAppForeground(bool foreground) => _usage.setForeground(foreground);
+
+  bool get usageThresholdReached {
+    final required = _remoteConfig.interstitialUsageSeconds;
+    return required <= 0 || _usage.elapsed.inSeconds >= required;
+  }
+
+  /// Whether a usage-paced interstitial may be offered at a natural break the
+  /// site reports (e.g. a tutor answer finished), as opposed to a completed
+  /// practice session, which is only subject to the cooldown.
+  bool isEligibleForInterstitialAtBreak() =>
+      usageThresholdReached && isEligibleForInterstitial();
 
   /// Whether an action-triggered interstitial is structurally eligible to be
   /// requested right now (ignoring whether an ad instance is already in memory).
@@ -604,6 +636,8 @@ class AdsService extends ChangeNotifier {
           .snapshot()
           .map((key, value) => MapEntry('interstitial.$key', value)),
       'pageNavigationCount': _pageNavigationCount,
+      'foregroundUsageSeconds': _usage.elapsed.inSeconds,
+      'usageThresholdSeconds': _remoteConfig.interstitialUsageSeconds,
       'lastInterstitialShown': _lastInterstitialShown?.toIso8601String(),
     };
   }

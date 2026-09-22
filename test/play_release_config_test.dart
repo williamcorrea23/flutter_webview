@@ -14,8 +14,8 @@ void main() {
             line.substring(line.indexOf('=') + 1),
   };
 
-  test('native product identity matches the existing Master ABAP listing', () {
-    expect(AppConstants.appName, 'Master ABAP');
+  test('native product identity matches the Mastering ABAP listing', () {
+    expect(AppConstants.appName, 'Mastering ABAP');
     expect(AppConstants.appTitle, AppConstants.appName);
     expect(AppConfig.appName, AppConstants.appName);
     final manifest =

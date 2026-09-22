@@ -19,8 +19,11 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    // AGP 8 remains necessary while flutter_inappwebview_android 1.1.3 still
+    // uses the legacy default ProGuard file removed by AGP 9. Kotlin matches
+    // the version embedded in this Gradle line to avoid plugin skew.
     id("com.android.application") version "8.11.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
 }
 

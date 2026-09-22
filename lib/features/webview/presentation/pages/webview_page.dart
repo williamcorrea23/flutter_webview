@@ -108,6 +108,9 @@ String _jsBridgeCode(String token) => '''
     triggerInterstitialOnAction: function() {
       return window.flutter_inappwebview.callHandler('triggerInterstitialOnAction', t);
     },
+    triggerInterstitialAtBreak: function() {
+      return window.flutter_inappwebview.callHandler('triggerInterstitialAtBreak', t);
+    },
     signInWithGoogle: function() {
       return window.flutter_inappwebview.callHandler('signInWithGoogle', t);
     },
@@ -140,7 +143,8 @@ class WebViewPage extends ConsumerStatefulWidget {
   ConsumerState<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends ConsumerState<WebViewPage> {
+class _WebViewPageState extends ConsumerState<WebViewPage>
+    with WidgetsBindingObserver {
   static final Logger _logger = Logger();
 
   InAppWebViewController? _webViewController;
@@ -168,11 +172,24 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final state = WidgetsBinding.instance.lifecycleState;
+    ref
+        .read(adsServiceProvider)
+        .setAppForeground(state == null || state == AppLifecycleState.resumed);
     _setupConnectivityListener();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    ref
+        .read(adsServiceProvider)
+        .setAppForeground(state == AppLifecycleState.resumed);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription.cancel();
     super.dispose();
   }
@@ -295,6 +312,27 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
             if (!mounted) return false;
             if (ref.read(isPremiumProvider).value == true) return false;
             return adsService.isEligibleForInterstitial();
+          },
+          requestConsent: () async => true,
+          showAd: () => adsService.showInterstitialOnAction(waitForLoad: true),
+        );
+      },
+    );
+
+    // Separate from triggerInterstitialOnAction on purpose: shells that predate
+    // this handler lack the shim function, so the site's call is a no-op there
+    // instead of an unpaced ad after every tutor answer.
+    controller.addJavaScriptHandler(
+      handlerName: 'triggerInterstitialAtBreak',
+      callback: (args) async {
+        if (await _admit(args) == null || !mounted) return false;
+        final adsService = ref.read(adsServiceProvider);
+
+        return _interstitialRequests.run(
+          canShow: () {
+            if (!mounted) return false;
+            if (ref.read(isPremiumProvider).value == true) return false;
+            return adsService.isEligibleForInterstitialAtBreak();
           },
           requestConsent: () async => true,
           showAd: () => adsService.showInterstitialOnAction(waitForLoad: true),

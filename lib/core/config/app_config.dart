@@ -54,7 +54,7 @@ class AppConfig {
   // revenue silently dead.
   static const Map<String, dynamic> remoteConfigDefaults = {
     'ads.enabled': true,
-    'ads.testMode': true,
+    'ads.testMode': false,
     'ads.banner.enabled': true,
     'ads.banner.placement': 'bottom',
     'ads.banner.adUnitId.android': 'ca-app-pub-8785125235072301/5430581499',
@@ -62,6 +62,7 @@ class AppConfig {
     'ads.interstitial.enabled': true,
     'ads.interstitial.frequency': 0,
     'ads.interstitial.interval_seconds': 60,
+    'ads.interstitial.usage_seconds': 180,
     'ads.interstitial.adUnitId.android':
         'ca-app-pub-8785125235072301/9453640886',
     'ads.interstitial.adUnitId.ios': 'ca-app-pub-3940256099942544/4411468910',

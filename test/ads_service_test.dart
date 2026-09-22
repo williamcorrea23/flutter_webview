@@ -6,10 +6,16 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_mobile_ads/src/ad_instance_manager.dart';
 import 'package:master_abap/core/services/ads_service.dart';
 import 'package:master_abap/core/services/consent_service.dart';
+import 'package:master_abap/core/services/usage_time_tracker.dart';
 import 'purchases_service_test.dart' show FakeRemoteConfigService;
 
 class AdConfig extends FakeRemoteConfigService {
   bool enabled = true;
+  int usageSeconds = 180;
+  @override
+  int get interstitialUsageSeconds => usageSeconds;
+  @override
+  int get interstitialFrequency => 0;
   @override
   bool get adsEnabled => enabled;
   @override
@@ -132,6 +138,67 @@ void main() {
     expect(await successfulShow, true);
     expect(service.getDebugInfo()['lastInterstitialShown'], isNotNull);
     second.fullScreenContentCallback!.onAdDismissedFullScreenContent!(second);
+    await tester.pump();
+    service.dispose();
+  });
+
+  test('navigation interstitial waits for foreground usage, not wall time',
+      () {
+    var now = Duration.zero;
+    final tracker = UsageTimeTracker(monotonicNow: () => now)
+      ..setForeground(true);
+    final service =
+        AdsService(AdConfig(), AdConsent(), usageTracker: tracker);
+    addTearDown(service.dispose);
+    service
+      ..onPageNavigation()
+      ..onPageNavigation();
+
+    now = const Duration(seconds: 100);
+    expect(service.canShowInterstitialOnNavigation(), false);
+    expect(service.isEligibleForInterstitialAtBreak(), false);
+
+    service.setAppForeground(false);
+    now = const Duration(minutes: 30);
+    expect(service.canShowInterstitialOnNavigation(), false);
+
+    service.setAppForeground(true);
+    now += const Duration(seconds: 80);
+    expect(service.canShowInterstitialOnNavigation(), true);
+    expect(service.isEligibleForInterstitialAtBreak(), true);
+    // A completed practice session is paced by the cooldown alone.
+    expect(service.isEligibleForInterstitial(), true);
+  });
+
+  test('zero usage seconds disables the usage requirement', () {
+    final tracker = UsageTimeTracker(monotonicNow: () => Duration.zero)
+      ..setForeground(true);
+    final service = AdsService(AdConfig()..usageSeconds = 0, AdConsent(),
+        usageTracker: tracker);
+    addTearDown(service.dispose);
+    expect(service.usageThresholdReached, true);
+  });
+
+  testWidgets('a shown interstitial restarts the usage window',
+      (tester) async {
+    var now = Duration.zero;
+    final tracker = UsageTimeTracker(monotonicNow: () => now)
+      ..setForeground(true);
+    final service =
+        AdsService(AdConfig(), AdConsent(), usageTracker: tracker);
+    await service.initialize();
+    now = const Duration(minutes: 4);
+    expect(service.usageThresholdReached, true);
+
+    final ad = instanceManager.adFor(interstitialIds.single) as InterstitialAd;
+    ad.adLoadCallback.onAdLoaded(ad);
+    final show = service.showInterstitialOnAction();
+    await tester.pump();
+    ad.fullScreenContentCallback!.onAdShowedFullScreenContent!(ad);
+    expect(await show, true);
+    expect(service.usageThresholdReached, false);
+    expect(service.isEligibleForInterstitialAtBreak(), false);
+    ad.fullScreenContentCallback!.onAdDismissedFullScreenContent!(ad);
     await tester.pump();
     service.dispose();
   });

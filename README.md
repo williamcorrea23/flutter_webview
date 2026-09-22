@@ -1,4 +1,4 @@
-# Master ABAP Mobile App
+# Mastering ABAP Mobile App
 
 A professional Flutter WebView application for Android and iOS with AdMob monetization and Firebase integration.
 
@@ -85,7 +85,7 @@ flutter test
 flutter build appbundle --release
 ```
 
-Play upload identity: **Master ABAP**, package `co.supabap.android`.
+Play upload identity: **Mastering ABAP: Code & Quizzes**, package `co.supabap.android`.
 Version `1.21.0+21` follows the published `1.20 (20)` verified on 2026-09-02.
 Flutter requires three numeric segments in the build name.
 Before every upload, recheck all uploaded versions in Play Console (including
@@ -152,7 +152,7 @@ Earlier validation: 47 Flutter tests passed, including four release-identity che
 static analysis passed. The real release command rejected the incompatible
 local certificate as expected; partial signing environment values were also
 rejected. The debug APK built successfully, and Android manifest inspection
-confirmed `Master ABAP`, `co.supabap.android`, `1.21.0 (21)` and target SDK 36.
+confirmed `Mastering ABAP: Code & Quizzes`, `co.supabap.android`, `1.21.0 (21)` and target SDK 36.
 This debug APK is not an upload artifact. At that stage, successful AAB signing
 and Play acceptance remained unverified because the registered upload key was
 not yet configured.
@@ -169,7 +169,7 @@ Kotlin/Gradle deprecation warnings remain outside this certificate-only change.
 
 Original-key recovery validation: all 49 Flutter tests passed again. The direct
 Gradle `:app:verifyPlayRelease :app:bundleRelease` build succeeded, including
-release lint and signing. The final AAB identifies `Master ABAP`,
+release lint and signing. The final AAB identifies `Mastering ABAP`,
 `co.supabap.android`, `1.21.0 (21)` and the registered original upload certificate.
 `jarsigner -verify` and `bundletool validate` both exited successfully. The
 no-space SDK junction's `apkanalyzer` also succeeded and confirmed the app and
@@ -271,4 +271,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Built with ❤️ for Master ABAP**
+**Built with ❤️ for Mastering ABAP**

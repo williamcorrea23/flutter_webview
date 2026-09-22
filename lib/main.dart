@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:logger/logger.dart';
 
 import 'core/config/firebase_options.dart';
@@ -94,6 +95,13 @@ Future<void> _initializeApp() async {
     _reportFatal('Firebase unavailable; using local defaults', error, stack);
   }
 
+  // Initialize Google Mobile Ads SDK early so ads can load without delay
+  try {
+    await MobileAds.instance.initialize();
+  } catch (error, stack) {
+    _reportFatal('MobileAds initialization failed', error, stack);
+  }
+
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -125,13 +133,14 @@ class _MasterAbapAppState extends ConsumerState<MasterAbapApp> {
   }
 
   Future<void> _initializeServices() async {
-    // Each service is initialized on its own so that one failure does not skip
-    // the rest. A single try/catch around all four meant a consent timeout
-    // silently cost the app its Remote Config, its purchases and its ads.
-    await _initialize('consent', () => ref.read(consentServiceProvider).initialize());
-    await _initialize('remote config', () => ref.read(remoteConfigServiceProvider).initialize());
-    await _initialize('purchases', () => ref.read(purchasesServiceProvider).initialize());
-    await _initialize('ads', () => ref.read(adsServiceProvider).initialize());
+    // Run service initializations in parallel so a slow consent check
+    // never stalls Remote Config or Ads initialization.
+    await Future.wait([
+      _initialize('consent', () => ref.read(consentServiceProvider).initialize()),
+      _initialize('remote config', () => ref.read(remoteConfigServiceProvider).initialize()),
+      _initialize('purchases', () => ref.read(purchasesServiceProvider).initialize()),
+      _initialize('ads', () => ref.read(adsServiceProvider).initialize()),
+    ]);
 
     if (!mounted) return;
     // Reading the provider is what starts it; it listens to authStateChanges

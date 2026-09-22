@@ -1,4 +1,4 @@
-# Static analysis for the Master ABAP shell.
+# Static analysis for the Mastering ABAP shell.
 #
 # Stricter than the stock Flutter template on purpose. This app hands a remote
 # website a JavaScript bridge that can start a purchase, create an account and

@@ -55,7 +55,10 @@ android {
     }
 
     defaultConfig {
-        // Must remain identical to the existing Master ABAP Play listing.
+        // Must remain identical to the existing Mastering ABAP Play listing.
+        applicationId = "co.supabap.android"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
         applicationId = "co.supabap.android"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -65,40 +68,39 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        when {
+            hasEnvSigning -> create("release") {
+                keyAlias = envKeyAlias
+                keyPassword = envKeyPassword
+                storeFile = file(envKeystorePath!!)
+                storePassword = envKeystorePassword
+            }
+            !hasAnyEnvSigning && releaseKeystoreFile.exists() -> create("release") {
+                keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+                keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+                storeFile = releaseKeystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = releaseKeystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // No debug-key fallback: verifyPlayRelease rejects missing or
-            // incompatible signing material before a release can be packaged.
-            signingConfig = when {
-                hasEnvSigning -> signingConfigs.create("release") {
-                    keyAlias = envKeyAlias
-                    keyPassword = envKeyPassword
-                    // Absolute in CI, so it is NOT resolved relative to
-                    // android/app/ the way the key.properties path below is.
-                    storeFile = file(envKeystorePath!!)
-                    storePassword = envKeystorePassword
-                }
-                !hasAnyEnvSigning && releaseKeystoreFile.exists() -> signingConfigs.create("release") {
-                    keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
-                    keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
-                    // file() here is Project.file on the :app project, so this
-                    // path is relative to android/app/ — which is why the
-                    // local key.properties can use ../../upload-keystore.jks.
-                    storeFile = releaseKeystoreProperties.getProperty("storeFile")?.let { file(it) }
-                    storePassword = releaseKeystoreProperties.getProperty("storePassword")
-                }
-                else -> null
-            }
+            signingConfig = signingConfigs.findByName("release")
+        }
+        debug {
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
 
 val verifyPlayRelease by tasks.registering {
     group = "verification"
-    description = "Checks Master ABAP package, version and the registered Play upload certificate."
+    description = "Checks Mastering ABAP package, version and the registered Play upload certificate."
     doLast {
         check(android.defaultConfig.applicationId == playReleaseProperties.getProperty("applicationId")) {
-            "Release package must match the existing Master ABAP Play listing."
+            "Release package must match the existing Mastering ABAP Play listing."
         }
         val minimumVersionCode = playReleaseProperties.getProperty("minimumVersionCode").toInt()
         check((android.defaultConfig.versionCode ?: 0) >= minimumVersionCode) {

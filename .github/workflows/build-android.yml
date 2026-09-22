@@ -129,9 +129,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.build.outputs.version }}
-        name: Master ABAP v${{ needs.build.outputs.version }}
+        name: Mastering ABAP v${{ needs.build.outputs.version }}
         body: |
-          Master ABAP Mobile App
+          Mastering ABAP Mobile App
           ### Google Play upload bundle
           AAB signed with the registered upload key. Upload through Play Console;
           this file cannot be installed directly and is not a published Play release.

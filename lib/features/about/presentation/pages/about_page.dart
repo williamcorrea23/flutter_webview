@@ -216,7 +216,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                    'Master ABAP is supported by advertising and subscriptions. '
+                    'Mastering ABAP is supported by advertising and subscriptions. '
                     'Advertisements do not unlock rewards or Premium access.'),
               ),
             ),

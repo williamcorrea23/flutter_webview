@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_abap/core/services/purchases_service.dart';
 import 'package:master_abap/core/services/remote_config_service.dart';
@@ -13,7 +14,7 @@ class FakeRemoteConfigService extends RemoteConfigService {
   bool get adsEnabled => false;
 
   @override
-  bool get adsTestMode => true;
+  bool get adsTestMode => false;
 
   @override
   bool get bannerAdsEnabled => false;
@@ -53,6 +54,42 @@ class FakeRemoteConfigService extends RemoteConfigService {
 }
 
 void main() {
+  group('purchase failures', () {
+    test('a closed Play sheet is reported as cancelled, not as an error', () {
+      // PurchasesErrorCode.purchaseCancelledError is index 1; the plugin sends
+      // the index as the PlatformException code.
+      final result = PurchasesService.purchaseFailure(
+          PlatformException(code: '1', message: 'Purchase was cancelled'));
+      expect(result['cancelled'], true);
+      expect(result['success'], false);
+      expect(result.containsKey('error'), false);
+    });
+
+    test('an owned plan points the user at Restore purchases', () {
+      final result = PurchasesService.purchaseFailure(
+          PlatformException(code: '6', message: 'Already owned'));
+      expect(result['cancelled'], isNull);
+      expect(result['code'], 'productAlreadyPurchasedError');
+      expect(result['error'], contains('Restore purchases'));
+    });
+
+    test('a non-numeric platform code degrades to a usable message', () {
+      // The Android plugin replies `invalidArgs`, and Flutter itself replies
+      // `error` when a handler throws; num.parse would blow up on both.
+      final result = PurchasesService.purchaseFailure(
+          PlatformException(code: 'invalidArgs', message: 'bad args'));
+      expect(result['success'], false);
+      expect(result['code'], 'unknownError');
+      expect(result['error'], isNot(contains('PlatformException')));
+    });
+
+    test('a non-platform error never leaks its toString to the user', () {
+      final result = PurchasesService.purchaseFailure(StateError('boom'));
+      expect(result['error'], isNot(contains('boom')));
+      expect(result['error'], isNotEmpty);
+    });
+  });
+
   group('PurchasesService Tests', () {
     test('Initialization starts false', () {
       final fakeRemoteConfig = FakeRemoteConfigService();

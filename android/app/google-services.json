@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "838743198796-4milql0mg7430tl0jllsk02h57kk06jh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.supabap.android",
+            "certificate_hash": "1d4680f42175fea1c33da9ae0e5d41921216c11a"
+          }
+        },
+        {
+          "client_id": "838743198796-6qsok5u68imrt6gi731c55k3d53d2mrf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.supabap.android",
+            "certificate_hash": "c6a4aa8d5ce337ec68ad29f72bd35d3181acc693"
+          }
+        },
+        {
           "client_id": "838743198796-is1ar5neicvrt09jlr2gtn7ehtnc9141.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -35,6 +51,51 @@
           "android_info": {
             "package_name": "co.supabap.android",
             "certificate_hash": "dc0a1850a87efbe45e45f6eb4fdf615c9717d06a"
+          }
+        },
+        {
+          "client_id": "838743198796-epopl0djnq4f1haj4folka4gjnma7m2b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoTMwErSB1cL4xXDa0_YapqwFv63MAHRc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "838743198796-epopl0djnq4f1haj4folka4gjnma7m2b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838743198796:android:5134059e4da43801b6b8e9",
+        "android_client_info": {
+          "package_name": "co.supsales.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "838743198796-i0plevnpljc6apvkkljlnaas6arse1u5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.supsales.android",
+            "certificate_hash": "d3482f2424b9fb421402430e84593550f2317dc8"
+          }
+        },
+        {
+          "client_id": "838743198796-me4ivnj44p6fnu0fhhd64i06dec204h6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.supsales.android",
+            "certificate_hash": "5ce673617daf33c5efae8288c3e1767f0d873656"
           }
         },
         {
